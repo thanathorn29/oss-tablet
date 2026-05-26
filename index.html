@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>One Stop Service - Tablet</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root { --brand-color: #0d47a1; --brand-light: #e3f2fd; --primary-bg: #f4f7f6; }
+        body { font-family: 'Kanit', sans-serif; background-color: var(--primary-bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; margin: 0; }
+        
+        /* Header & Clock */
+        .tablet-header { background: var(--brand-color); color: white; padding: 1rem 1.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; flex-shrink: 0; }
+        
+        /* Stepper */
+        .stepper-wrapper { display: flex; justify-content: space-between; padding: 1rem 2rem; background: white; border-bottom: 1px solid #eee; }
+        .stepper-item { position: relative; display: flex; flex-direction: column; align-items: center; flex: 1; opacity: 0.3; transition: 0.3s; }
+        .stepper-item.active, .stepper-item.completed { opacity: 1; }
+        .step-counter { width: 30px; height: 30px; border-radius: 50%; background: #ccc; color: white; display: flex; justify-content: center; align-items: center; margin-bottom: 5px; font-weight: bold; }
+        .stepper-item.active .step-counter { background: var(--brand-color); }
+        .stepper-item.completed .step-counter { background: #198754; }
+
+        .tablet-content { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 2rem; overflow-y: auto; }
+
+        /* Buttons */
+        .home-title { font-size: 2rem; font-weight: 700; margin-bottom: 2rem; color: #333; text-align: center; }
+        .btn-type { width: 100%; max-width: 650px; padding: 1.5rem; border-radius: 20px; margin-bottom: 1.2rem; display: flex; align-items: center; text-align: left; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-size: 1.6rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+        .btn-type:active { transform: scale(0.97); }
+        .btn-icon { width: 70px; height: 70px; border-radius: 15px; display: flex; justify-content: center; align-items: center; margin-right: 1.5rem; font-size: 2.5rem; flex-shrink: 0; }
+
+        .btn-internal { background: white; color: var(--brand-color); border: 2px solid transparent; }
+        .btn-internal .btn-icon { background: var(--brand-light); color: var(--brand-color); }
+        .btn-retiree { background: white; color: #b78a00; border: 2px solid #ffecb3; }
+        .btn-retiree .btn-icon { background: #fff8e1; color: #f5b041; }
+        .btn-external { background: white; color: #555; border: 2px solid transparent; }
+        .btn-external .btn-icon { background: #f1f3f5; color: #6c757d; }
+
+        /* Numpad & Others */
+        .display-card { background: white; border-radius: 25px; padding: 2.5rem; width: 100%; max-width: 550px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        .sap-display { font-size: 3.5rem; font-weight: 700; color: var(--brand-color); letter-spacing: 12px; background: var(--brand-light); border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; white-space: nowrap; overflow: hidden; text-align: center; min-height: 100px; }
+        .cursor-blink { display: inline-block; width: 4px; height: 3.2rem; background-color: var(--brand-color); vertical-align: middle; margin-top: -8px; margin-right: 8px; animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        
+        .grid-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .btn-n { background: white; border: 1px solid #ddd; padding: 1.2rem; font-size: 1.8rem; font-weight: bold; border-radius: 15px; cursor: pointer; }
+        .btn-n:active { background: #eee; transform: scale(0.96); }
+        .btn-enter { grid-column: span 3; background: var(--brand-color); color: white; border: none; padding: 1.2rem; border-radius: 15px; font-size: 1.5rem; font-weight: bold; margin-top: 10px; cursor: pointer; }
+
+        .btn-back { position: absolute; top: 1rem; left: 1rem; border-radius: 50px; padding: 0.5rem 1.5rem; z-index: 100; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .cart-list { text-align: left; margin-top: 1.5rem; max-height: 350px; overflow-y: auto; }
+        .cart-item { background: #f8f9fa; border-left: 5px solid #ffc107; padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1rem; font-size: 1.2rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+        .cart-item-name { font-weight: 600; color: #333; }
+        .cart-item-qty { background: white; padding: 0.3rem 1rem; border-radius: 50px; font-weight: bold; border: 1px solid #ddd; color: var(--brand-color); }
+    </style>
+</head>
+<body>
+
+    <div class="tablet-header d-flex justify-content-between align-items-center">
+        <div class="fs-3 fw-bold"><i class="bi bi-hospital me-2"></i>One Stop Service</div>
+        <div id="clock" class="fs-3 fw-bold">00:00:00</div>
+    </div>
+
+    <div class="stepper-wrapper">
+        <div class="stepper-item active" id="step-1"><div class="step-counter">1</div><div>เลือกประเภท</div></div>
+        <div class="stepper-item" id="step-2"><div class="step-counter">2</div><div>ระบุตัวตน</div></div>
+        <div class="stepper-item" id="step-3"><div class="step-counter">3</div><div>รับบริการ</div></div>
+    </div>
+
+    <div class="tablet-content" id="main-content">
+        
+        <button class="btn btn-light btn-back d-none" id="btn-back-home" onclick="resetToHome()">
+            <i class="bi bi-arrow-left-circle me-2"></i>เลือกประเภทใหม่
+        </button>
+
+        <!-- Home Screen -->
+        <div id="screen-home" class="w-100 d-flex flex-column align-items-center">
+            <div class="home-title">กรุณาเลือกประเภทผู้รับบริการ</div>
+            
+            <button class="btn-type btn-internal" onclick="handleSelect('internal')">
+                <div class="btn-icon"><i class="bi bi-person-vcard"></i></div>
+                <div>บุคลากรภายใน<br><span class="fs-5 fw-normal text-muted">สำหรับบุคลากรที่มีรหัส SAP ID</span></div>
+            </button>
+
+            <button class="btn-type btn-retiree" onclick="handleSelect('retiree')">
+                <div class="btn-icon"><i class="bi bi-award"></i></div>
+                <div>ผู้เกษียณอายุ / อดีตบุคลากร<br><span class="fs-5 fw-normal text-muted">ไม่ต้องระบุรหัส SAP ID</span></div>
+            </button>
+
+            <button class="btn-type btn-external" onclick="handleSelect('external')">
+                <div class="btn-icon"><i class="bi bi-people"></i></div>
+                <div>บุคคลภายนอกทั่วไป<br><span class="fs-5 fw-normal text-muted">ไม่ต้องระบุรหัส SAP ID</span></div>
+            </button>
+        </div>
+
+        <!-- Numpad Screen -->
+        <div id="screen-numpad" class="display-card d-none">
+            <h3 class="fw-bold mb-3 text-secondary">กรุณาระบุรหัส SAP ID</h3>
+            <div class="sap-display" id="sap-val">
+                <span class="cursor-blink"></span>________
+            </div>
+            <div class="grid-numpad">
+                <script>
+                    for(let i=1; i<=9; i++) document.write(`<button class="btn-n" onclick="pressNumpad('${i}')">${i}</button>`);
+                </script>
+                <button class="btn-n text-danger" onclick="pressNumpad('C')">ล้าง</button>
+                <button class="btn-n" onclick="pressNumpad('0')">0</button>
+                <button class="btn-n text-warning" onclick="pressNumpad('DEL')"><i class="bi bi-backspace-fill"></i></button>
+                <button class="btn-enter" onclick="pressNumpad('ENTER')"><i class="bi bi-check-circle-fill me-2"></i>ตกลง (ENTER)</button>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="screen-loading" class="display-card d-none">
+            <div class="spinner-border text-primary mb-4" style="width: 4rem; height: 4rem; border-width: 5px;" role="status"></div>
+            <h2 class="fw-bold mt-2" style="color: var(--brand-color);">กำลังค้นหาข้อมูล...</h2>
+        </div>
+
+        <!-- Active Screen -->
+        <div id="screen-active" class="display-card d-none">
+            <div id="status-badge" class="badge rounded-pill bg-primary px-4 py-2 mb-3 fs-5">สถานะ</div>
+            <h2 id="user-name" class="fw-bold mt-2 text-success">กำลังรอชื่อ...</h2>
+            <p id="user-dept" class="text-muted fs-5">-</p>
+            <hr class="my-4" style="border-top: 2px dashed #eee;">
+            <h5 class="fw-bold text-start text-primary"><i class="bi bi-cart-check-fill me-2"></i>สรุปรายการบริการ:</h5>
+            <div id="cart-list" class="cart-list">
+                <div class="text-center text-muted p-4 bg-light rounded-4 border" style="border-style: dashed !important;">
+                    <div class="spinner-grow text-warning spinner-grow-sm mb-3" role="status"></div>
+                    <h5 class="mb-0 text-secondary">กำลังรอเจ้าหน้าที่เลือกบริการ...</h5>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div id="screen-success" class="display-card d-none">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 7rem;"></i>
+            <h1 class="fw-bold mt-4 text-success" style="font-size: 3rem;">บันทึกสำเร็จ</h1>
+            <p class="text-muted fs-4">ขอบคุณที่ใช้บริการค่ะ</p>
+
+            <div class="mt-5">
+                <button onclick="openEvaluation()" class="btn btn-lg rounded-pill px-5 py-3 shadow text-white" 
+                        style="background-color: #c5a021; font-size: 1.5rem; border: none;">
+                    <i class="bi bi-star-fill me-2 text-white"></i> กดเพื่อประเมินความพึงพอใจ
+                </button>
+            </div>
+        </div>
+
+        <!-- Eval Modal -->
+        <div id="eval-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1050;">
+            <!-- ✅ ปรับขนาดปุ่มที่นี่ให้เล็กลง: เปลี่ยน padding และลด font-size -->
+            <button onclick="closeEvaluation()" class="btn btn-danger position-absolute shadow" style="top: 20px; right: 20px; z-index: 1060; border-radius: 30px; padding: 6px 16px; font-size: 0.95rem; font-weight: bold;">
+                <i class="bi bi-x-circle me-1"></i> ยกเลิกและกลับหน้าหลัก
+            </button>
+            <div class="bg-white mx-auto mt-4 rounded-4 overflow-hidden d-flex flex-column" style="width: 95%; height: 90%; position: relative; border-radius: 20px;">
+                <div class="text-white py-3 px-4 shadow-sm" style="background-color: #2c4e80;">
+                    <h4 class="mb-0 fw-bold text-white">แบบประเมินความพึงพอใจฝ่ายทรัพยากรบุคคล</h4>
+                </div>
+                <div id="eval-selector" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center p-4">
+                    <h2 class="fw-bold mb-5" style="color: #c5a021;">โปรดเลือกสถานะของท่าน</h2>
+                    <div class="d-flex gap-4 w-100 justify-content-center" style="max-width: 800px;">
+                        <div onclick="loadForm('internal')" class="card text-center p-4 shadow-sm btn-card" style="cursor: pointer; border: 2px solid #7ba2cc; flex: 1; border-radius: 20px;">
+                            <i class="bi bi-person-badge-fill text-secondary" style="font-size: 5rem;"></i>
+                            <h4 class="fw-bold mt-4" style="color: #c5a021;">บุคลากรคณะฯ</h4>
+                        </div>
+                        <div onclick="loadForm('external')" class="card text-center p-4 shadow-sm btn-card" style="cursor: pointer; border: 2px solid #7ba2cc; flex: 1; border-radius: 20px;">
+                            <i class="bi bi-people-fill text-secondary" style="font-size: 5rem;"></i>
+                            <h4 class="fw-bold mt-4" style="color: #c5a021;">บุคคลภายนอก</h4>
+                            <p class="text-muted mb-0">(ผู้เกษียณ / ผู้สมัครงาน / อื่น ๆ)</p>
+                        </div>
+                    </div>
+                </div>
+                <iframe id="eval-iframe" class="d-none w-100 h-100 border-0"></iframe>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let autoResetTimer = null;
+        let interactionTimer = null;
+        let currentStatus = ''; // ✅ เพิ่มตัวแปรดักสถานะ ป้องกันโค้ดรันซ้ำซ้อน
+        
+        // ✅ เปลี่ยนตัวแปร SUCCESS_TIMEOUT เป็น 6 วินาที
+        const SUCCESS_TIMEOUT = 6000; 
+        
+        // ตัวจับเวลาขณะทำแบบประเมิน หากไม่แตะหน้าจอเลยจะรีเซ็ต (คงไว้ 30 วินาทีเพื่อให้มีเวลาทำแบบฟอร์มครับ)
+        const INACTIVITY_LIMIT = 30000;
+        
+        const FORMS = {
+            internal: 'https://docs.google.com/forms/d/e/1FAIpQLScgU45KjBDUq2hGdgRBYWCGMqj0e85MhqPyjTlyOM3kOZ6kGw/viewform?embedded=true',
+            external: 'https://docs.google.com/forms/d/e/1FAIpQLScVFzY96LF5milwOrrh6X6EVObsWV-varXxA06aLsq1IUv6lA/viewform?embedded=true'
+        };
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6EWAFTjAjcj_pkaMrqPIsbKsfXsHjosQ",
+            authDomain: "onestopservice-71e95.firebaseapp.com",
+            databaseURL: "https://onestopservice-71e95-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "onestopservice-71e95",
+            storageBucket: "onestopservice-71e95.firebasestorage.app",
+            messagingSenderId: "535505251000",
+            appId: "1:535505251000:web:cc21889c9d648fe8d6624d"
+        };
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const params = new URLSearchParams(window.location.search);
+        const tabletId = params.get('tabletId') || 'tablet1';
+        const sessionRef = firebase.database().ref('sessions/' + tabletId);
+
+        let sapBuffer = '';
+
+        // --- Interaction Tracking ---
+        function resetInactivityTimer() {
+            clearTimeout(interactionTimer);
+            const evalModal = document.getElementById('eval-modal');
+            if (evalModal && !evalModal.classList.contains('d-none')) {
+                interactionTimer = setTimeout(() => {
+                    closeEvaluation();
+                }, INACTIVITY_LIMIT);
+            }
+        }
+
+        ['touchstart', 'mousedown', 'mousemove'].forEach(evt => {
+            window.addEventListener(evt, resetInactivityTimer, true);
+        });
+
+        // --- UI Updates ---
+        function updateClock() {
+            document.getElementById('clock').textContent = new Date().toLocaleTimeString('th-TH');
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function updateStepper(step) {
+            for(let i=1; i<=3; i++) {
+                const el = document.getElementById('step-'+i);
+                el.classList.toggle('active', i === step);
+                el.classList.toggle('completed', i < step);
+            }
+        }
+
+        function showScreen(id) {
+            ['screen-home', 'screen-numpad', 'screen-loading', 'screen-active', 'screen-success'].forEach(s => {
+                document.getElementById(s).classList.toggle('d-none', s !== id);
+            });
+            document.getElementById('btn-back-home').classList.toggle('d-none', id !== 'screen-numpad');
+
+            const steps = { 'screen-home': 1, 'screen-numpad': 2, 'screen-loading': 2, 'screen-active': 3, 'screen-success': 3 };
+            updateStepper(steps[id] || 1);
+        }
+
+        function updateSAPDisplay(text) {
+            const container = document.getElementById('sap-val');
+            const typed = text || '';
+            const placeholderLength = 8 - typed.length;
+            const placeholder = placeholderLength > 0 ? '_'.repeat(placeholderLength) : '';
+            container.innerHTML = `${typed}<span class="cursor-blink"></span>${placeholder}`;
+        }
+
+        // --- Actions ---
+        function handleSelect(type) {
+    const arrivedAt = Date.now(); // ✅ จับเวลาทันทีที่จิ้ม
+    if (type === 'internal') {
+        sapBuffer = '';
+        updateSAPDisplay('');
+        sessionRef.update({ status: 'idle', isTabletTyping: true, userType: 'บุคลากรภายใน', sapInput: '', userInfo: null, arrivedAt: arrivedAt });
+        showScreen('screen-numpad');
+    } else if (type === 'retiree') {
+        sessionRef.update({ userType: "บุคคลภายนอก", status: 'active', userInfo: { name: "บุคคลภายนอก", dept: "ผู้เกษียณ / บุคลากรพ้นสภาพ / ผู้สมัครงาน / อื่นๆ", subType: "retiree" }, isTabletTyping: false, arrivedAt: arrivedAt });
+        showScreen('screen-active');
+    } else {
+        sessionRef.update({ userType: "บุคคลภายนอก", status: 'active', userInfo: { name: "บุคคลภายนอก", dept: "ผู้เกษียณ / บุคลากรพ้นสภาพ / ผู้สมัครงาน / อื่นๆ", subType: "general" }, isTabletTyping: false, arrivedAt: arrivedAt });
+        showScreen('screen-active');
+    }
+}
+
+        function pressNumpad(val) {
+            if (val === 'C') sapBuffer = '';
+            else if (val === 'DEL') sapBuffer = sapBuffer.slice(0, -1);
+            else if (val === 'ENTER') {
+                if (sapBuffer.length > 0) {
+                    showScreen('screen-loading'); 
+                    sessionRef.update({ sapInput: sapBuffer, triggerSearch: true, status: 'loading', isTabletTyping: false });
+                }
+                return;
+            } else if (sapBuffer.length < 8) sapBuffer += val;
+
+            updateSAPDisplay(sapBuffer);
+            sessionRef.update({ sapInput: sapBuffer, isTabletTyping: true });
+        }
+
+        function resetToHome() {
+    currentStatus = 'idle';
+    sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null });
+    showScreen('screen-home');
+}
+
+        // --- Firebase Listener ---
+        sessionRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) { showScreen('screen-home'); return; }
+
+            const newStatus = data.status || 'idle';
+            sapBuffer = (data.sapInput !== undefined && data.sapInput !== null) ? String(data.sapInput) : '';
+
+            // 🛡️ [เกราะป้องกัน 2]: ถ้า Tablet เพิ่งโชว์สำเร็จ (รอนับเวลาอยู่) แล้วหน้าจอเจ้าหน้าที่เผลอส่งรีเซ็ตมาตอนครบ 1.5 วินาที
+            if (currentStatus === 'success' && newStatus === 'idle') {
+                console.log("บล็อคการรีเซ็ต: ปล่อยให้นับเวลาตอนจบหน้า success ให้ครบ");
+                return; 
+            }
+
+            // ✅ เช็คว่าสถานะ "เปลี่ยนไปจากเดิม" เท่านั้น (ป้องกันโค้ดรันซ้ำซ้อนจากเน็ตกระตุก)
+            const isStatusChanged = (currentStatus !== newStatus);
+            currentStatus = newStatus;
+
+            // ✅ ด่านแรกสุด: ถ้าสถานะไม่ได้เป็น success เคลียร์ Timer ทิ้งไปเลย!
+            if (currentStatus !== 'success') {
+                clearTimeout(autoResetTimer);
+            }
+
+            const statusBadge = document.getElementById('status-badge');
+            if (statusBadge) statusBadge.classList.add('d-none');
+
+            // --- IDLE ---
+            if (currentStatus === 'idle') {
+                const evalModal = document.getElementById('eval-modal');
+                if (evalModal) evalModal.classList.add('d-none');
+
+                if (data.isTabletTyping) {
+                    showScreen('screen-numpad');
+                    updateSAPDisplay(sapBuffer);
+                } else {
+                    showScreen('screen-home');
+                    sapBuffer = '';
+                    updateSAPDisplay('');
+                }
+                return;
+            }
+
+            // --- LOADING ---
+            if (currentStatus === 'loading') {
+                showScreen('screen-loading');
+                return;
+            }
+
+            // --- ACTIVE ---
+            if (currentStatus === 'active') {
+                showScreen('screen-active');
+                updateActiveDisplay(data); 
+                return;
+            }
+
+            // --- SUCCESS ---
+            if (currentStatus === 'success') {
+                // ✅ ถ้ายกเลิก/กดปุ่มไม่ทัน ให้รัน Timer "เฉพาะตอนที่เพิ่งเปลี่ยนเป็นสถานะ Success เท่านั้น"
+                if (isStatusChanged) {
+                    showScreen('screen-success');
+                    
+                    console.log(`เริ่มนับเวลาถอยหลัง ${SUCCESS_TIMEOUT / 1000} วินาที...`);
+                    autoResetTimer = setTimeout(() => {
+                        console.log("ครบเวลาที่กำหนด - รีเซ็ตกลับหน้าหลัก");
+                        currentStatus = 'idle'; // ✅ ปลดเกราะป้องกัน เพื่อให้กลับหน้าหลักได้
+                        sessionRef.set({ status: 'idle', userInfo: null, userType: '', sapInput: '', cart: [] });
+                        showScreen('screen-home');
+                    }, SUCCESS_TIMEOUT); 
+                }
+                return;
+            }
+
+            // --- EVALUATING ---
+            if (currentStatus === 'evaluating') {
+                // ไม่ต้องทำอะไร ปล่อยให้ Modal โชว์ค้างไว้ และให้ interactionTimer คอยจับเวลา 30 วิเอาเอง
+                return;
+            }
+        });
+
+        function updateActiveDisplay(data) {
+            const nameEl = document.getElementById('user-name');
+            const deptEl = document.getElementById('user-dept');
+
+            if (data.userInfo) {
+                nameEl.textContent = data.userInfo.name || "บุคคลภายนอก";
+                deptEl.textContent = data.userInfo.dept || ""; 
+            } else {
+                nameEl.textContent = data.userType || "บุคคลภายนอก";
+                deptEl.textContent = "";
+            }
+            
+            const cartContainer = document.getElementById('cart-list');
+            if (data.cart && data.cart.length > 0) {
+                cartContainer.innerHTML = data.cart.map((item, i) => 
+                    `<div class="cart-item">
+                        <div class="cart-item-name"><span class="text-primary me-2">${i + 1}.</span>${item.name}</div>
+                        <div class="cart-item-qty">x ${item.count}</div>
+                    </div>`
+                ).join('');
+            } else {
+                cartContainer.innerHTML = `
+                <div class="text-center text-muted p-4 bg-light rounded-4 border" style="border-style: dashed !important;">
+                    <div class="spinner-grow text-warning spinner-grow-sm mb-3" role="status"></div>
+                    <h5 class="mb-0 text-secondary">กำลังรอเจ้าหน้าที่เลือกบริการ...</h5>
+                </div>`;
+            }
+        }
+
+        // --- Evaluation Functions ---
+        function openEvaluation() {
+            clearTimeout(autoResetTimer); // ✅ หยุดเวลารีเซ็ตหน้ารอสำเร็จทันที
+            console.log("เข้าสู่หน้าประเมิน หยุดเวลารีเซ็ตแล้ว");
+
+            // ✅ อัปเดตสถานะเป็น 'evaluating' ทันที เพื่อให้โค้ดฝั่งหน้าจอ Staff รู้ว่าห้ามรีเซ็ต!
+            sessionRef.update({ status: 'evaluating' });
+            
+            document.getElementById('eval-modal').classList.remove('d-none');
+            document.getElementById('eval-selector').classList.remove('d-none');
+            document.getElementById('eval-iframe').classList.add('d-none');
+            
+            resetInactivityTimer(); // เริ่มจับเวลา 30 วินาทีถ้าผู้ใช้ไม่แตะจอ
+        }
+
+        function loadForm(type) {
+            document.getElementById('eval-selector').classList.add('d-none');
+            const iframe = document.getElementById('eval-iframe');
+            iframe.src = FORMS[type] + "&v=" + new Date().getTime(); 
+            iframe.classList.remove('d-none');
+        }
+
+        function closeEvaluation() {
+    clearTimeout(autoResetTimer);
+    clearTimeout(interactionTimer);
+    document.getElementById('eval-modal').classList.add('d-none');
+    document.getElementById('eval-iframe').src = ""; 
+    
+    currentStatus = 'idle';
+    sessionRef.set({ status: 'idle', userInfo: null, userType: '', sapInput: '', cart: [], arrivedAt: null });
+    showScreen('screen-home');
+}
+    </script>
+</body>
+</html>
