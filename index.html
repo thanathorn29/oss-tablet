@@ -54,7 +54,9 @@
         .btn-n:active { background: #eee; transform: scale(0.96); }
         .btn-enter { grid-column: span 3; background: var(--brand-color); color: white; border: none; padding: 1.2rem; border-radius: 15px; font-size: 1.5rem; font-weight: bold; margin-top: 10px; cursor: pointer; }
 
-        .btn-back { position: absolute; top: 1rem; left: 1rem; border-radius: 50px; padding: 0.5rem 1.5rem; z-index: 100; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        /* ปรับปรุงสไตล์ปุ่มย้อนกลับให้อยู่มุมซ้ายบนอย่างสวยงาม ไม่บังเนื้อหา */
+        .btn-back { position: absolute; top: 1.5rem; left: 1.5rem; border-radius: 50px; padding: 0.6rem 1.5rem; z-index: 100; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; transition: all 0.2s; }
+        .btn-back:active { transform: scale(0.95); }
         
         .cart-list { text-align: left; margin-top: 1.5rem; max-height: 350px; overflow-y: auto; }
         .cart-item { background: #f8f9fa; border-left: 5px solid #ffc107; padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1rem; font-size: 1.2rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
@@ -77,6 +79,7 @@
 
     <div class="tablet-content" id="main-content">
         
+        <!-- ปุ่มกดย้อนกลับเพื่อเลือกประเภทใหม่ (แสดงในหน้ากรอก SAP และหน้าจอรอบริการ) -->
         <button class="btn btn-light btn-back d-none" id="btn-back-home" onclick="resetToHome()">
             <i class="bi bi-arrow-left-circle me-2"></i>เลือกประเภทใหม่
         </button>
@@ -155,7 +158,6 @@
 
         <!-- Eval Modal -->
         <div id="eval-modal" class="d-none" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1050;">
-            <!-- ✅ ปรับขนาดปุ่มที่นี่ให้เล็กลง: เปลี่ยน padding และลด font-size -->
             <button onclick="closeEvaluation()" class="btn btn-danger position-absolute shadow" style="top: 20px; right: 20px; z-index: 1060; border-radius: 30px; padding: 6px 16px; font-size: 0.95rem; font-weight: bold;">
                 <i class="bi bi-x-circle me-1"></i> ยกเลิกและกลับหน้าหลัก
             </button>
@@ -186,12 +188,9 @@
     <script>
         let autoResetTimer = null;
         let interactionTimer = null;
-        let currentStatus = ''; // ✅ เพิ่มตัวแปรดักสถานะ ป้องกันโค้ดรันซ้ำซ้อน
+        let currentStatus = ''; 
         
-        // ✅ เปลี่ยนตัวแปร SUCCESS_TIMEOUT เป็น 6 วินาที
         const SUCCESS_TIMEOUT = 6000; 
-        
-        // ตัวจับเวลาขณะทำแบบประเมิน หากไม่แตะหน้าจอเลยจะรีเซ็ต (คงไว้ 30 วินาทีเพื่อให้มีเวลาทำแบบฟอร์มครับ)
         const INACTIVITY_LIMIT = 30000;
         
         const FORMS = {
@@ -248,7 +247,10 @@
             ['screen-home', 'screen-numpad', 'screen-loading', 'screen-active', 'screen-success'].forEach(s => {
                 document.getElementById(s).classList.toggle('d-none', s !== id);
             });
-            document.getElementById('btn-back-home').classList.toggle('d-none', id !== 'screen-numpad');
+            
+            // 🟢 ✅ จุดแก้ไขสำคัญ: ปรับให้ปุ่มย้อนกลับ แสดงขึ้นมาทั้งในหน้าจอ 'screen-numpad' และ 'screen-active'
+            const showBackButton = (id === 'screen-numpad' || id === 'screen-active');
+            document.getElementById('btn-back-home').classList.toggle('d-none', !showBackButton);
 
             const steps = { 'screen-home': 1, 'screen-numpad': 2, 'screen-loading': 2, 'screen-active': 3, 'screen-success': 3 };
             updateStepper(steps[id] || 1);
@@ -264,20 +266,20 @@
 
         // --- Actions ---
         function handleSelect(type) {
-    const arrivedAt = Date.now(); // ✅ จับเวลาทันทีที่จิ้ม
-    if (type === 'internal') {
-        sapBuffer = '';
-        updateSAPDisplay('');
-        sessionRef.update({ status: 'idle', isTabletTyping: true, userType: 'บุคลากรภายใน', sapInput: '', userInfo: null, arrivedAt: arrivedAt });
-        showScreen('screen-numpad');
-    } else if (type === 'retiree') {
-        sessionRef.update({ userType: "บุคคลภายนอก", status: 'active', userInfo: { name: "บุคคลภายนอก", dept: "ผู้เกษียณ / บุคลากรพ้นสภาพ / ผู้สมัครงาน / อื่นๆ", subType: "retiree" }, isTabletTyping: false, arrivedAt: arrivedAt });
-        showScreen('screen-active');
-    } else {
-        sessionRef.update({ userType: "บุคคลภายนอก", status: 'active', userInfo: { name: "บุคคลภายนอก", dept: "ผู้เกษียณ / บุคลากรพ้นสภาพ / ผู้สมัครงาน / อื่นๆ", subType: "general" }, isTabletTyping: false, arrivedAt: arrivedAt });
-        showScreen('screen-active');
-    }
-}
+            const arrivedAt = Date.now(); 
+            if (type === 'internal') {
+                sapBuffer = '';
+                updateSAPDisplay('');
+                sessionRef.update({ status: 'idle', isTabletTyping: true, userType: 'บุคลากรภายใน', sapInput: '', userInfo: null, arrivedAt: arrivedAt });
+                showScreen('screen-numpad');
+            } else if (type === 'retiree') {
+                sessionRef.update({ userType: "บุคคลภายนอก", status: 'active', userInfo: { name: "บุคคลภายนอก", dept: "ผู้เกษียณ / บุคลากรพ้นสภาพ / ผู้สมัครงาน / อื่นๆ", subType: "retiree" }, isTabletTyping: false, arrivedAt: arrivedAt });
+                showScreen('screen-active');
+            } else {
+                sessionRef.update({ userType: "บุคคลภายนอก", status: 'active', userInfo: { name: "บุคคลภายนอก", dept: "ผู้เกษียณ / บุคลากรพ้นสภาพ / ผู้สมัครงาน / อื่นๆ", subType: "general" }, isTabletTyping: false, arrivedAt: arrivedAt });
+                showScreen('screen-active');
+            }
+        }
 
         function pressNumpad(val) {
             if (val === 'C') sapBuffer = '';
@@ -295,10 +297,10 @@
         }
 
         function resetToHome() {
-    currentStatus = 'idle';
-    sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null });
-    showScreen('screen-home');
-}
+            currentStatus = 'idle';
+            sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null });
+            showScreen('screen-home');
+        }
 
         // --- Firebase Listener ---
         sessionRef.on('value', (snapshot) => {
@@ -308,17 +310,14 @@
             const newStatus = data.status || 'idle';
             sapBuffer = (data.sapInput !== undefined && data.sapInput !== null) ? String(data.sapInput) : '';
 
-            // 🛡️ [เกราะป้องกัน 2]: ถ้า Tablet เพิ่งโชว์สำเร็จ (รอนับเวลาอยู่) แล้วหน้าจอเจ้าหน้าที่เผลอส่งรีเซ็ตมาตอนครบ 1.5 วินาที
             if (currentStatus === 'success' && newStatus === 'idle') {
                 console.log("บล็อคการรีเซ็ต: ปล่อยให้นับเวลาตอนจบหน้า success ให้ครบ");
                 return; 
             }
 
-            // ✅ เช็คว่าสถานะ "เปลี่ยนไปจากเดิม" เท่านั้น (ป้องกันโค้ดรันซ้ำซ้อนจากเน็ตกระตุก)
             const isStatusChanged = (currentStatus !== newStatus);
             currentStatus = newStatus;
 
-            // ✅ ด่านแรกสุด: ถ้าสถานะไม่ได้เป็น success เคลียร์ Timer ทิ้งไปเลย!
             if (currentStatus !== 'success') {
                 clearTimeout(autoResetTimer);
             }
@@ -357,14 +356,13 @@
 
             // --- SUCCESS ---
             if (currentStatus === 'success') {
-                // ✅ ถ้ายกเลิก/กดปุ่มไม่ทัน ให้รัน Timer "เฉพาะตอนที่เพิ่งเปลี่ยนเป็นสถานะ Success เท่านั้น"
                 if (isStatusChanged) {
                     showScreen('screen-success');
                     
                     console.log(`เริ่มนับเวลาถอยหลัง ${SUCCESS_TIMEOUT / 1000} วินาที...`);
                     autoResetTimer = setTimeout(() => {
                         console.log("ครบเวลาที่กำหนด - รีเซ็ตกลับหน้าหลัก");
-                        currentStatus = 'idle'; // ✅ ปลดเกราะป้องกัน เพื่อให้กลับหน้าหลักได้
+                        currentStatus = 'idle'; 
                         sessionRef.set({ status: 'idle', userInfo: null, userType: '', sapInput: '', cart: [] });
                         showScreen('screen-home');
                     }, SUCCESS_TIMEOUT); 
@@ -374,7 +372,6 @@
 
             // --- EVALUATING ---
             if (currentStatus === 'evaluating') {
-                // ไม่ต้องทำอะไร ปล่อยให้ Modal โชว์ค้างไว้ และให้ interactionTimer คอยจับเวลา 30 วิเอาเอง
                 return;
             }
         });
@@ -410,17 +407,16 @@
 
         // --- Evaluation Functions ---
         function openEvaluation() {
-            clearTimeout(autoResetTimer); // ✅ หยุดเวลารีเซ็ตหน้ารอสำเร็จทันที
+            clearTimeout(autoResetTimer); 
             console.log("เข้าสู่หน้าประเมิน หยุดเวลารีเซ็ตแล้ว");
 
-            // ✅ อัปเดตสถานะเป็น 'evaluating' ทันที เพื่อให้โค้ดฝั่งหน้าจอ Staff รู้ว่าห้ามรีเซ็ต!
             sessionRef.update({ status: 'evaluating' });
             
             document.getElementById('eval-modal').classList.remove('d-none');
             document.getElementById('eval-selector').classList.remove('d-none');
             document.getElementById('eval-iframe').classList.add('d-none');
             
-            resetInactivityTimer(); // เริ่มจับเวลา 30 วินาทีถ้าผู้ใช้ไม่แตะจอ
+            resetInactivityTimer(); 
         }
 
         function loadForm(type) {
@@ -431,15 +427,15 @@
         }
 
         function closeEvaluation() {
-    clearTimeout(autoResetTimer);
-    clearTimeout(interactionTimer);
-    document.getElementById('eval-modal').classList.add('d-none');
-    document.getElementById('eval-iframe').src = ""; 
-    
-    currentStatus = 'idle';
-    sessionRef.set({ status: 'idle', userInfo: null, userType: '', sapInput: '', cart: [], arrivedAt: null });
-    showScreen('screen-home');
-}
+            clearTimeout(autoResetTimer);
+            clearTimeout(interactionTimer);
+            document.getElementById('eval-modal').classList.add('d-none');
+            document.getElementById('eval-iframe').src = ""; 
+            
+            currentStatus = 'idle';
+            sessionRef.set({ status: 'idle', userInfo: null, userType: '', sapInput: '', cart: [], arrivedAt: null });
+            showScreen('screen-home');
+        }
     </script>
 </body>
 </html>
