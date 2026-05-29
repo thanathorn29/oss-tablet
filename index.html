@@ -54,7 +54,7 @@
         .btn-n:active { background: #eee; transform: scale(0.96); }
         .btn-enter { grid-column: span 3; background: var(--brand-color); color: white; border: none; padding: 1.2rem; border-radius: 15px; font-size: 1.5rem; font-weight: bold; margin-top: 10px; cursor: pointer; }
 
-        /* ปรับปรุงสไตล์ปุ่มย้อนกลับให้อยู่มุมซ้ายบนอย่างสวยงาม ไม่บังเนื้อหา */
+        /* ปุ่มย้อนกลับ */
         .btn-back { position: absolute; top: 1.5rem; left: 1.5rem; border-radius: 50px; padding: 0.6rem 1.5rem; z-index: 100; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #ddd; transition: all 0.2s; }
         .btn-back:active { transform: scale(0.95); }
         
@@ -79,7 +79,7 @@
 
     <div class="tablet-content" id="main-content">
         
-        <!-- ปุ่มกดย้อนกลับเพื่อเลือกประเภทใหม่ (แสดงในหน้ากรอก SAP และหน้าจอรอบริการ) -->
+        <!-- ปุ่มกดย้อนกลับเพื่อเลือกประเภทใหม่ -->
         <button class="btn btn-light btn-back d-none" id="btn-back-home" onclick="resetToHome()">
             <i class="bi bi-arrow-left-circle me-2"></i>เลือกประเภทใหม่
         </button>
@@ -161,7 +161,9 @@
             <button onclick="closeEvaluation()" class="btn btn-danger position-absolute shadow" style="top: 20px; right: 20px; z-index: 1060; border-radius: 30px; padding: 6px 16px; font-size: 0.95rem; font-weight: bold;">
                 <i class="bi bi-x-circle me-1"></i> ยกเลิกและกลับหน้าหลัก
             </button>
-            <div class="bg-white mx-auto mt-4 rounded-4 overflow-hidden d-flex flex-column" style="width: 95%; height: 90%; position: relative; border-radius: 20px;">
+            
+            <!-- 🟢 เพิ่ม ID: eval-container เพื่อให้สคริปต์เข้าล้างตัวไอเฟรมได้ถูกต้อง -->
+            <div class="bg-white mx-auto mt-4 rounded-4 overflow-hidden d-flex flex-column" id="eval-container" style="width: 95%; height: 90%; position: relative; border-radius: 20px;">
                 <div class="text-white py-3 px-4 shadow-sm" style="background-color: #2c4e80;">
                     <h4 class="mb-0 fw-bold text-white">แบบประเมินความพึงพอใจฝ่ายทรัพยากรบุคคล</h4>
                 </div>
@@ -179,7 +181,7 @@
                         </div>
                     </div>
                 </div>
-                <iframe id="eval-iframe" class="d-none w-100 h-100 border-0"></iframe>
+                <!-- 🟢 ย้าย iframe ออกไปสร้างผ่าน JavaScript แบบไดนามิก เพื่อความเสถียรและตัดการดักจับของระบบ Google Forms -->
             </div>
         </div>
 
@@ -191,7 +193,9 @@
         let currentStatus = ''; 
         
         const SUCCESS_TIMEOUT = 6000; 
-        const INACTIVITY_LIMIT = 30000;
+        // 🟢 จุดแก้ไขที่ 1: ขยายเวลาปล่อยว่าง (Inactivity Limit) จาก 30 วินาที เป็น 3 นาที (180,000 มิลลิวินาที) 
+        // เพื่อป้องกันระบบรีเซ็ตกลับหน้าแรกเร็วเกินไปขณะมีคนใช้งาน Iframe
+        const INACTIVITY_LIMIT = 180000; 
         
         const FORMS = {
             internal: 'https://docs.google.com/forms/d/e/1FAIpQLScgU45KjBDUq2hGdgRBYWCGMqj0e85MhqPyjTlyOM3kOZ6kGw/viewform?embedded=true',
@@ -248,7 +252,6 @@
                 document.getElementById(s).classList.toggle('d-none', s !== id);
             });
             
-            // 🟢 ✅ จุดแก้ไขสำคัญ: ปรับให้ปุ่มย้อนกลับ แสดงขึ้นมาทั้งในหน้าจอ 'screen-numpad' และ 'screen-active'
             const showBackButton = (id === 'screen-numpad' || id === 'screen-active');
             document.getElementById('btn-back-home').classList.toggle('d-none', !showBackButton);
 
@@ -406,6 +409,9 @@
         }
 
         // --- Evaluation Functions ---
+        
+        // 🟢 จุดแก้ไขที่ 2: ปรับปรุงฟังก์ชัน `openEvaluation()` 
+        // สั่งล้าง Iframe เก่าที่อาจจะค้างอยู่ทันทีก่อนเริ่มหน้าใหม่ เพื่อไม่ให้มีประวัติหน้าเว็บค้างคาในแคช
         function openEvaluation() {
             clearTimeout(autoResetTimer); 
             console.log("เข้าสู่หน้าประเมิน หยุดเวลารีเซ็ตแล้ว");
@@ -414,23 +420,42 @@
             
             document.getElementById('eval-modal').classList.remove('d-none');
             document.getElementById('eval-selector').classList.remove('d-none');
-            document.getElementById('eval-iframe').classList.add('d-none');
+            
+            const oldIframe = document.getElementById('eval-iframe');
+            if (oldIframe) oldIframe.remove();
             
             resetInactivityTimer(); 
         }
 
+        // 🟢 จุดแก้ไขที่ 3: ปรับปรุงฟังก์ชัน `loadForm(type)`
+        // เปลี่ยนมาสร้างแท็ก Iframe ใหม่ขึ้นมาทดแทนสด ๆ ทุกรอบด้วยคำสั่ง JS แทนการเปลี่ยนค่า `.src`
+        // วิธีนี้จะช่วยล้างระบบป้องกัน Dirty State ของตัวฟอร์มและหลีกเลี่ยงการเด้งป๊อปอัป "ออกจากเว็บไซต์ไหม" ของแท็บเล็ตครับ
         function loadForm(type) {
             document.getElementById('eval-selector').classList.add('d-none');
-            const iframe = document.getElementById('eval-iframe');
+            
+            const oldIframe = document.getElementById('eval-iframe');
+            if (oldIframe) oldIframe.remove();
+
+            const iframe = document.createElement('iframe');
+            iframe.id = 'eval-iframe';
+            iframe.className = 'w-100 h-100 border-0';
             iframe.src = FORMS[type] + "&v=" + new Date().getTime(); 
-            iframe.classList.remove('d-none');
+            
+            document.getElementById('eval-container').appendChild(iframe);
         }
 
+        // 🟢 จุดแก้ไขที่ 4: ปรับปรุงฟังก์ชัน `closeEvaluation()`
+        // ปรับเปลี่ยนมาเป็นการดึง Iframe ออกจากตู้คอนเทนเนอร์โดยตรงทันทีก่อนจะทำการซ่อน Modal
+        // วิธีนี้เบราว์เซอร์จะทำลายองค์ประกอบของ Google Forms ทันที ทำให้ไม่มีการรันหน้ายืนยันระบบ "ออกจากเว็บไซต์ไหม" ขัดขวางครับ
         function closeEvaluation() {
             clearTimeout(autoResetTimer);
             clearTimeout(interactionTimer);
             document.getElementById('eval-modal').classList.add('d-none');
-            document.getElementById('eval-iframe').src = ""; 
+            
+            const iframe = document.getElementById('eval-iframe');
+            if (iframe) {
+                iframe.parentNode.removeChild(iframe);
+            }
             
             currentStatus = 'idle';
             sessionRef.set({ status: 'idle', userInfo: null, userType: '', sapInput: '', cart: [], arrivedAt: null });
