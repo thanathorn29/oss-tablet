@@ -193,9 +193,9 @@
         let currentStatus = ''; 
         
         const SUCCESS_TIMEOUT = 6000; 
-        // 🟢 จุดแก้ไขที่ 1: ขยายเวลาปล่อยว่าง (Inactivity Limit) จาก 30 วินาที เป็น 3 นาที (180,000 มิลลิวินาที) 
+        // 🟢 จุดแก้ไขที่ 1: ขยายเวลาปล่อยว่าง (Inactivity Limit) จาก 30 วินาที เป็น 2 นาที (120,000 มิลลิวินาที) 
         // เพื่อป้องกันระบบรีเซ็ตกลับหน้าแรกเร็วเกินไปขณะมีคนใช้งาน Iframe
-        const INACTIVITY_LIMIT = 180000; 
+        const INACTIVITY_LIMIT = 120000; 
         
         const FORMS = {
             internal: 'https://docs.google.com/forms/d/e/1FAIpQLScgU45KjBDUq2hGdgRBYWCGMqj0e85MhqPyjTlyOM3kOZ6kGw/viewform?embedded=true',
