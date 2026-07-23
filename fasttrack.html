@@ -12,37 +12,53 @@
         body { font-family: 'Kanit', sans-serif; background-color: #f4f7f6; }
         .header { background: linear-gradient(135deg, #0d47a1, #002171); color: white; padding: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .btn-service { padding: 1rem; font-size: 1.1rem; border-radius: 12px; font-weight: 500; transition: transform 0.1s; }
+        .btn-service { padding: 0.8rem; font-size: 1rem; border-radius: 10px; font-weight: 500; transition: transform 0.1s; height: 100%; }
         .btn-service:active { transform: scale(0.95); }
         #cart-list { max-height: 250px; overflow-y: auto; }
         .cart-item { background: #f8f9fa; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 0.5rem; }
+        .nav-pills .nav-link { color: #555; font-weight: 500; border-radius: 10px; margin-right: 5px; }
+        .nav-pills .nav-link.active { background-color: #0d47a1; color: white; }
     </style>
 </head>
 <body>
 
 <script>
     // 🚨 นำลิงก์ Web App (ที่ลงท้ายด้วย /exec) มาวางในเครื่องหมายคำพูดด้านล่างนี้ครับ 🚨
-    const GAS_API_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbzouH3xBShb8Lt2WOqFxTyo2s10_M5IYfrQdkhoPujMhZ_Jh3y4OLlTy4fK6PbCARU-1A/exec"; 
+    const GAS_API_URL = "ใส่_URL_WEB_APP_ของคุณที่นี่"; 
 </script>
 
 <div class="header d-flex justify-content-between align-items-center mb-4">
-    <h3 class="mb-0 fw-bold"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Fast Track</h3>
+    <h3 class="mb-0 fw-bold"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Fast Track Lane</h3>
     <div id="clock" class="fw-bold fs-5">00:00</div>
 </div>
 
-<div class="container pb-5">
+<div class="container-fluid px-4 pb-5">
     <div class="row g-4">
         
-        <!-- ฝั่งซ้าย: ค้นหา & ระบุตัวตน -->
-        <div class="col-lg-5">
+        <!-- ================= ฝั่งซ้าย: ระบุตัวตน ================= -->
+        <div class="col-lg-4">
             <div class="card mb-4">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-person-vcard me-2"></i>1. ระบุตัวตน (SAP ID)</h5>
-                    <div class="input-group input-group-lg mb-3">
-                        <input type="number" id="sapInput" class="form-control bg-light" placeholder="ระบุ SAP ID">
-                        <button class="btn btn-primary px-4" onclick="searchUser()"><i class="bi bi-search"></i> ค้นหา</button>
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-person-vcard me-2"></i>1. ประเภทผู้รับบริการ</h5>
+                    
+                    <!-- สวิตช์สลับประเภท -->
+                    <div class="btn-group w-100 mb-4" role="group">
+                        <input type="radio" class="btn-check" name="userType" id="typeInternal" autocomplete="off" checked onchange="toggleUserType('internal')">
+                        <label class="btn btn-outline-primary" for="typeInternal">บุคลากร (SAP)</label>
+                      
+                        <input type="radio" class="btn-check" name="userType" id="typeExternal" autocomplete="off" onchange="toggleUserType('external')">
+                        <label class="btn btn-outline-primary" for="typeExternal">บุคคลภายนอก</label>
+                    </div>
+
+                    <!-- ส่วนค้นหา SAP (จะซ่อนเมื่อเลือกบุคคลภายนอก) -->
+                    <div id="sapSearchBox">
+                        <div class="input-group input-group-lg mb-3">
+                            <input type="number" id="sapInput" class="form-control bg-light" placeholder="ระบุ SAP ID">
+                            <button class="btn btn-primary px-3" onclick="searchUser()"><i class="bi bi-search"></i> ค้นหา</button>
+                        </div>
                     </div>
                     
+                    <!-- กล่องแสดงข้อมูลผู้ใช้ -->
                     <div id="userInfoBox" class="alert alert-success d-none mb-0">
                         <h5 id="userName" class="fw-bold mb-1">-</h5>
                         <div id="userDept" class="small text-muted mb-1">-</div>
@@ -51,36 +67,76 @@
                 </div>
             </div>
 
+            <!-- ตะกร้า -->
             <div class="card" id="cartCard" style="display: none;">
                 <div class="card-body p-4">
                     <h5 class="fw-bold text-warning mb-3"><i class="bi bi-cart-check-fill me-2"></i>ตะกร้าบริการ</h5>
                     <div id="cart-list" class="mb-3"></div>
-                    <button class="btn btn-success btn-lg w-100 fw-bold" onclick="saveData()">
+                    <button class="btn btn-success btn-lg w-100 fw-bold shadow-sm" onclick="saveData()">
                         <i class="bi bi-check-circle-fill me-2"></i> บันทึกข้อมูล
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- ฝั่งขวา: เลือกบริการ -->
-        <div class="col-lg-7" id="serviceSection" style="opacity: 0.5; pointer-events: none;">
+        <!-- ================= ฝั่งขวา: เลือกบริการ ================= -->
+        <div class="col-lg-8" id="serviceSection" style="opacity: 0.4; pointer-events: none;">
             <div class="card h-100">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid me-2"></i>2. เลือกบริการด่วน</h5>
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid me-2"></i>2. เลือกบริการ</h5>
                     
-                    <div class="row g-2 mb-4">
-                        <div class="col-6"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ส่งเอกสาร Flexible Benefit', 'PAC-01')">Flexible Benefit</button></div>
-                        <div class="col-6"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ลดหย่อนค่ารักษาพยาบาล', 'PAC-03')">ค่ารักษาพยาบาล</button></div>
-                        <div class="col-6"><button class="btn btn-outline-primary w-100 btn-service" onclick="addToCart('หนังสือรับรองการทำงาน', 'PAC-08')">รับรองการทำงาน</button></div>
-                        <div class="col-6"><button class="btn btn-outline-primary w-100 btn-service" onclick="addToCart('สลิปเงินเดือน', 'PAC-19')">สลิปเงินเดือน</button></div>
-                        <div class="col-6"><button class="btn btn-outline-success w-100 btn-service" onclick="addToCart('ผ่านสิทธิธนาคาร', 'PAC-07')">ผ่านสิทธิธนาคาร</button></div>
-                        <div class="col-6"><button class="btn btn-outline-success w-100 btn-service" onclick="addToCart('ใบภาษี - 50 ทวิ', 'PAC-20')">ใบภาษี 50 ทวิ</button></div>
-                    </div>
+                    <!-- หมวดหมู่บริการ (Tabs) -->
+                    <ul class="nav nav-pills mb-3 bg-light p-2 rounded" id="serviceTabs" role="tablist">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-welfare">สวัสดิการ/รักษา</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-doc">เอกสาร/ประวัติ</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-fund">ภาษี/กองทุน</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-other">อื่นๆ</button></li>
+                    </ul>
 
-                    <h6 class="fw-bold text-muted mb-2">บริการอื่นๆ (พิมพ์ระบุเอง)</h6>
-                    <div class="input-group input-group-lg">
-                        <input type="text" id="otherInput" class="form-control bg-light" placeholder="ระบุชื่อบริการ...">
-                        <button class="btn btn-secondary px-4" onclick="addOtherToCart()"><i class="bi bi-plus-lg"></i> เพิ่ม</button>
+                    <div class="tab-content" id="serviceTabsContent">
+                        
+                        <!-- TAB 1: สวัสดิการ -->
+                        <div class="tab-pane fade show active" id="tab-welfare">
+                            <div class="row g-2">
+                                <div class="col-4"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ส่งเอกสาร Flexible Benefit', 'PAC-01')">Flexible Benefit</button></div>
+                                <div class="col-4"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ส่งเอกสารใบเบิก พม./พศ.', 'PAC-02')">ใบเบิก พม./พศ.</button></div>
+                                <div class="col-4"><button class="btn btn-primary w-100 btn-service" onclick="addToCart('ลดหย่อนค่ารักษาพยาบาล', 'PAC-03')">ลดหย่อนค่ารักษา</button></div>
+                                <div class="col-4"><button class="btn btn-primary w-100 btn-service" onclick="addToCart('รับรองต้นสังกัด พม./พศ.', 'PAC-04')">รับรองต้นสังกัด พม./พศ.</button></div>
+                                <div class="col-4"><button class="btn btn-primary w-100 btn-service" onclick="addToCart('ใบเบิก(บำนาญ)', 'PAC-10')">ใบเบิก(บำนาญ)</button></div>
+                                <div class="col-4"><button class="btn btn-primary w-100 btn-service" onclick="addToCart('เบิกค่าเล่าเรียน', 'PAC-11')">เบิกค่าเล่าเรียน</button></div>
+                                <div class="col-4"><button class="btn btn-success w-100 btn-service" onclick="addToCart('ผ่านสิทธิธนาคาร', 'PAC-07')">ผ่านสิทธิธนาคาร</button></div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: เอกสาร -->
+                        <div class="tab-pane fade" id="tab-doc">
+                            <div class="row g-2">
+                                <div class="col-4"><button class="btn btn-primary w-100 btn-service" onclick="addToCart('หนังสือรับรองการทำงาน', 'PAC-08')">รับรองการทำงาน</button></div>
+                                <div class="col-4"><button class="btn btn-primary w-100 btn-service" onclick="addToCart('สำเนาประวัติ', 'PAC-09')">สำเนาประวัติ</button></div>
+                                <div class="col-4"><button class="btn btn-secondary w-100 btn-service" onclick="addToCart('สลิปเงินเดือน', 'PAC-19')">สลิปเงินเดือน</button></div>
+                                <div class="col-4"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ส่งเอกสาร MU/eDOC', 'GAD-01')">ส่ง MU/eDOC</button></div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: ภาษี/กองทุน -->
+                        <div class="tab-pane fade" id="tab-fund">
+                            <div class="row g-2">
+                                <div class="col-4"><button class="btn btn-success w-100 btn-service" onclick="addToCart('สมัครกองทุนฯ', 'PAC-05')">สมัครกองทุนฯ</button></div>
+                                <div class="col-4"><button class="btn btn-success w-100 btn-service" onclick="addToCart('ลาออกกองทุนฯ', 'PAC-06')">ลาออกกองทุนฯ</button></div>
+                                <div class="col-4"><button class="btn btn-outline-success w-100 btn-service" onclick="addToCart('ใบภาษี - 50 ทวิ', 'PAC-20')">ใบภาษี 50 ทวิ</button></div>
+                                <div class="col-4"><button class="btn btn-outline-success w-100 btn-service" onclick="addToCart('ใบภาษี - 40(6)', 'PAC-20')">ใบภาษี 40(6)</button></div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 4: อื่นๆ -->
+                        <div class="tab-pane fade" id="tab-other">
+                            <h6 class="fw-bold text-muted mb-2"><i class="bi bi-pencil-fill me-2"></i>พิมพ์ระบุชื่อบริการด้วยตนเอง</h6>
+                            <div class="input-group input-group-lg mb-3">
+                                <input type="text" id="otherInput" class="form-control border-secondary" placeholder="เช่น บำเหน็จดำรงชีพ, เปลี่ยนแปลงบัญชี...">
+                                <button class="btn btn-secondary px-4" onclick="addOtherToCart()"><i class="bi bi-plus-lg me-1"></i> เพิ่มลงตะกร้า</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -90,7 +146,7 @@
 </div>
 
 <!-- Modal แจ้งเตือน -->
-<div class="modal fade" id="alertModal" tabindex="-1">
+<div class="modal fade" id="alertModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0" style="border-radius: 15px;">
             <div class="modal-body text-center p-4">
@@ -109,6 +165,7 @@
     const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
     let cart = [];
     let currentUser = null;
+    let currentUserType = 'internal'; // สถานะเริ่มต้น
 
     function showAlert(type, message, onConfirm = null) {
         const icon = document.getElementById('alertIcon');
@@ -129,6 +186,43 @@
         alertModal.show();
     }
 
+    // 🟢 ฟังก์ชันสลับประเภทผู้ใช้
+    function toggleUserType(type) {
+        currentUserType = type;
+        const searchBox = document.getElementById('sapSearchBox');
+        const infoBox = document.getElementById('userInfoBox');
+        const serviceSec = document.getElementById('serviceSection');
+
+        if(type === 'internal') {
+            searchBox.style.display = 'block';
+            infoBox.classList.add('d-none');
+            serviceSec.style = "opacity: 0.4; pointer-events: none;";
+            currentUser = null;
+        } else {
+            searchBox.style.display = 'none';
+            // เซ็ตข้อมูลจำลองสำหรับบุคคลภายนอกทันที
+            currentUser = {
+                userType: 'บุคคลภายนอก',
+                sapId: '-',
+                fullName: 'บุคคลภายนอก / ผู้เกษียณ',
+                department: '-',
+                job: '-',
+                personnelStatus: 'บุคคลภายนอก'
+            };
+            document.getElementById('userName').textContent = currentUser.fullName;
+            document.getElementById('userDept').textContent = "ไม่ต้องใช้รหัส SAP ID";
+            document.getElementById('userJob').textContent = "";
+            infoBox.classList.remove('d-none');
+            
+            // ปลดล็อคฝั่งขวาให้เลือกบริการได้เลย
+            serviceSec.style = "opacity: 1; pointer-events: auto;";
+        }
+        
+        // เคลียร์ตะกร้าเมื่อสลับโหมด
+        cart = [];
+        renderCart();
+    }
+
     async function searchUser() {
         const sapId = document.getElementById('sapInput').value.trim();
         if(!sapId) { showAlert('error', 'กรุณาระบุ SAP ID'); return; }
@@ -145,6 +239,8 @@
             if(data.success) {
                 alertModal.hide();
                 currentUser = data.data;
+                currentUser.userType = 'บุคลากรภายใน'; // แปะป้ายประเภท
+
                 document.getElementById('userName').textContent = currentUser.fullName;
                 document.getElementById('userDept').textContent = currentUser.department;
                 document.getElementById('userJob').textContent = currentUser.job;
@@ -155,7 +251,7 @@
                 showAlert('error', data.message);
             }
         } catch (err) {
-            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ Server');
         }
     }
 
@@ -193,7 +289,7 @@
                 </div>
                 <div class="d-flex align-items-center">
                     <span class="badge bg-primary me-3 fs-6">x${item.count}</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="removeCart(${item.id})"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeCart(${item.id})"><i class="bi bi-trash"></i></button>
                 </div>
             </div>`;
         });
@@ -206,7 +302,7 @@
         showAlert('loading', 'กำลังบันทึกข้อมูล...');
 
         const records = cart.map(item => ({
-            "ประเภทผู้ใช้": "บุคลากรภายใน",
+            "ประเภทผู้ใช้": currentUser.userType,
             "SAP ID": currentUser.sapId,
             "ชื่อ-นามสกุล": currentUser.fullName,
             "หน่วยงาน": currentUser.department,
@@ -216,7 +312,7 @@
             "ชื่อบริการ": item.name,
             "รายละเอียดบริการ": item.details,
             "จำนวน": item.count,
-            "ผู้ดำเนินการ": "ติดต่อเอง"
+            "ผู้ดำเนินการ": "Fast Track" // ใส่เป็นลายเซ็นว่ามาจากช่องทางนี้
         }));
 
         try {
@@ -228,13 +324,10 @@
             
             if(data.success) {
                 showAlert('success', 'บันทึกสำเร็จ!', () => {
-                    // รีเซ็ตหน้าจอเพื่อรับคนต่อไป
+                    // รีเซ็ตหน้าจอทั้งหมดเพื่อรับคนต่อไป
+                    document.getElementById('typeInternal').checked = true;
+                    toggleUserType('internal');
                     document.getElementById('sapInput').value = '';
-                    document.getElementById('userInfoBox').classList.add('d-none');
-                    document.getElementById('serviceSection').style = "opacity: 0.5; pointer-events: none;";
-                    document.getElementById('cartCard').style.display = 'none';
-                    currentUser = null;
-                    cart = [];
                 });
             } else {
                 showAlert('error', 'บันทึกไม่สำเร็จ: ' + data.message);
@@ -247,6 +340,9 @@
     // ดักการกด Enter ในช่อง SAP
     document.getElementById('sapInput').addEventListener('keypress', function(e) {
         if(e.key === 'Enter') searchUser();
+    });
+    document.getElementById('otherInput').addEventListener('keypress', function(e) {
+        if(e.key === 'Enter') addOtherToCart();
     });
 </script>
 </body>
