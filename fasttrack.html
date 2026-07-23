@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Fast Track - One Stop Service</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #f4f7f6; }
+        .header { background: linear-gradient(135deg, #0d47a1, #002171); color: white; padding: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .btn-service { padding: 1rem; font-size: 1.1rem; border-radius: 12px; font-weight: 500; transition: transform 0.1s; }
+        .btn-service:active { transform: scale(0.95); }
+        #cart-list { max-height: 250px; overflow-y: auto; }
+        .cart-item { background: #f8f9fa; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<script>
+    // 🚨 นำลิงก์ Web App (ที่ลงท้ายด้วย /exec) มาวางในเครื่องหมายคำพูดด้านล่างนี้ครับ 🚨
+    const GAS_API_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbzouH3xBShb8Lt2WOqFxTyo2s10_M5IYfrQdkhoPujMhZ_Jh3y4OLlTy4fK6PbCARU-1A/exec"; 
+</script>
+
+<div class="header d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0 fw-bold"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Fast Track</h3>
+    <div id="clock" class="fw-bold fs-5">00:00</div>
+</div>
+
+<div class="container pb-5">
+    <div class="row g-4">
+        
+        <!-- ฝั่งซ้าย: ค้นหา & ระบุตัวตน -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-person-vcard me-2"></i>1. ระบุตัวตน (SAP ID)</h5>
+                    <div class="input-group input-group-lg mb-3">
+                        <input type="number" id="sapInput" class="form-control bg-light" placeholder="ระบุ SAP ID">
+                        <button class="btn btn-primary px-4" onclick="searchUser()"><i class="bi bi-search"></i> ค้นหา</button>
+                    </div>
+                    
+                    <div id="userInfoBox" class="alert alert-success d-none mb-0">
+                        <h5 id="userName" class="fw-bold mb-1">-</h5>
+                        <div id="userDept" class="small text-muted mb-1">-</div>
+                        <div id="userJob" class="small text-muted">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="cartCard" style="display: none;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-warning mb-3"><i class="bi bi-cart-check-fill me-2"></i>ตะกร้าบริการ</h5>
+                    <div id="cart-list" class="mb-3"></div>
+                    <button class="btn btn-success btn-lg w-100 fw-bold" onclick="saveData()">
+                        <i class="bi bi-check-circle-fill me-2"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ฝั่งขวา: เลือกบริการ -->
+        <div class="col-lg-7" id="serviceSection" style="opacity: 0.5; pointer-events: none;">
+            <div class="card h-100">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-primary mb-3"><i class="bi bi-ui-checks-grid me-2"></i>2. เลือกบริการด่วน</h5>
+                    
+                    <div class="row g-2 mb-4">
+                        <div class="col-6"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ส่งเอกสาร Flexible Benefit', 'PAC-01')">Flexible Benefit</button></div>
+                        <div class="col-6"><button class="btn btn-warning w-100 btn-service" onclick="addToCart('ลดหย่อนค่ารักษาพยาบาล', 'PAC-03')">ค่ารักษาพยาบาล</button></div>
+                        <div class="col-6"><button class="btn btn-outline-primary w-100 btn-service" onclick="addToCart('หนังสือรับรองการทำงาน', 'PAC-08')">รับรองการทำงาน</button></div>
+                        <div class="col-6"><button class="btn btn-outline-primary w-100 btn-service" onclick="addToCart('สลิปเงินเดือน', 'PAC-19')">สลิปเงินเดือน</button></div>
+                        <div class="col-6"><button class="btn btn-outline-success w-100 btn-service" onclick="addToCart('ผ่านสิทธิธนาคาร', 'PAC-07')">ผ่านสิทธิธนาคาร</button></div>
+                        <div class="col-6"><button class="btn btn-outline-success w-100 btn-service" onclick="addToCart('ใบภาษี - 50 ทวิ', 'PAC-20')">ใบภาษี 50 ทวิ</button></div>
+                    </div>
+
+                    <h6 class="fw-bold text-muted mb-2">บริการอื่นๆ (พิมพ์ระบุเอง)</h6>
+                    <div class="input-group input-group-lg">
+                        <input type="text" id="otherInput" class="form-control bg-light" placeholder="ระบุชื่อบริการ...">
+                        <button class="btn btn-secondary px-4" onclick="addOtherToCart()"><i class="bi bi-plus-lg"></i> เพิ่ม</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- Modal แจ้งเตือน -->
+<div class="modal fade" id="alertModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0" style="border-radius: 15px;">
+            <div class="modal-body text-center p-4">
+                <div id="alertIcon" class="mb-3"></div>
+                <h5 id="alertMessage" class="fw-bold mb-3"></h5>
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal" id="alertBtn">ตกลง</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    setInterval(() => document.getElementById('clock').textContent = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'}), 1000);
+
+    const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
+    let cart = [];
+    let currentUser = null;
+
+    function showAlert(type, message, onConfirm = null) {
+        const icon = document.getElementById('alertIcon');
+        const btn = document.getElementById('alertBtn');
+        if(type === 'loading') {
+            icon.innerHTML = '<div class="spinner-border text-primary" style="width:3rem;height:3rem;"></div>';
+            btn.style.display = 'none';
+        } else if (type === 'success') {
+            icon.innerHTML = '<i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>';
+            btn.style.display = 'inline-block';
+        } else {
+            icon.innerHTML = '<i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>';
+            btn.style.display = 'inline-block';
+        }
+        document.getElementById('alertMessage').textContent = message;
+        if(onConfirm) btn.onclick = () => { alertModal.hide(); onConfirm(); };
+        else btn.onclick = () => alertModal.hide();
+        alertModal.show();
+    }
+
+    async function searchUser() {
+        const sapId = document.getElementById('sapInput').value.trim();
+        if(!sapId) { showAlert('error', 'กรุณาระบุ SAP ID'); return; }
+        
+        showAlert('loading', 'กำลังค้นหา...');
+        
+        try {
+            const res = await fetch(GAS_API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'searchUser', sapId: sapId })
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                alertModal.hide();
+                currentUser = data.data;
+                document.getElementById('userName').textContent = currentUser.fullName;
+                document.getElementById('userDept').textContent = currentUser.department;
+                document.getElementById('userJob').textContent = currentUser.job;
+                
+                document.getElementById('userInfoBox').classList.remove('d-none');
+                document.getElementById('serviceSection').style = "opacity: 1; pointer-events: auto;";
+            } else {
+                showAlert('error', data.message);
+            }
+        } catch (err) {
+            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        }
+    }
+
+    function addToCart(name, code, details = '') {
+        const exist = cart.find(i => i.name === name);
+        if (exist) exist.count++;
+        else cart.push({ id: Date.now(), name, code, count: 1, details });
+        renderCart();
+    }
+
+    function addOtherToCart() {
+        const input = document.getElementById('otherInput');
+        if(!input.value.trim()) return;
+        addToCart('อื่นๆ', 'OTHER-01', input.value.trim());
+        input.value = '';
+    }
+
+    function removeCart(id) {
+        cart = cart.filter(i => i.id !== id);
+        renderCart();
+    }
+
+    function renderCart() {
+        const list = document.getElementById('cart-list');
+        list.innerHTML = '';
+        if(cart.length > 0) document.getElementById('cartCard').style.display = 'block';
+        else document.getElementById('cartCard').style.display = 'none';
+
+        cart.forEach(item => {
+            list.innerHTML += `
+            <div class="cart-item p-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">${item.name}</div>
+                    ${item.details ? `<div class="small text-muted">${item.details}</div>` : ''}
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-primary me-3 fs-6">x${item.count}</span>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeCart(${item.id})"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>`;
+        });
+    }
+
+    async function saveData() {
+        if(!currentUser) { showAlert('error', 'กรุณาระบุตัวตนก่อน'); return; }
+        if(cart.length === 0) { showAlert('error', 'ตะกร้าว่างเปล่า'); return; }
+
+        showAlert('loading', 'กำลังบันทึกข้อมูล...');
+
+        const records = cart.map(item => ({
+            "ประเภทผู้ใช้": "บุคลากรภายใน",
+            "SAP ID": currentUser.sapId,
+            "ชื่อ-นามสกุล": currentUser.fullName,
+            "หน่วยงาน": currentUser.department,
+            "Job": currentUser.job,
+            "สถานะบุคลากร": currentUser.personnelStatus,
+            "รหัสบริการ": item.code,
+            "ชื่อบริการ": item.name,
+            "รายละเอียดบริการ": item.details,
+            "จำนวน": item.count,
+            "ผู้ดำเนินการ": "ติดต่อเอง"
+        }));
+
+        try {
+            const res = await fetch(GAS_API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'saveRecord', records: records })
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                showAlert('success', 'บันทึกสำเร็จ!', () => {
+                    // รีเซ็ตหน้าจอเพื่อรับคนต่อไป
+                    document.getElementById('sapInput').value = '';
+                    document.getElementById('userInfoBox').classList.add('d-none');
+                    document.getElementById('serviceSection').style = "opacity: 0.5; pointer-events: none;";
+                    document.getElementById('cartCard').style.display = 'none';
+                    currentUser = null;
+                    cart = [];
+                });
+            } else {
+                showAlert('error', 'บันทึกไม่สำเร็จ: ' + data.message);
+            }
+        } catch (err) {
+            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        }
+    }
+
+    // ดักการกด Enter ในช่อง SAP
+    document.getElementById('sapInput').addEventListener('keypress', function(e) {
+        if(e.key === 'Enter') searchUser();
+    });
+</script>
+</body>
+</html>
