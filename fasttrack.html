@@ -24,7 +24,15 @@
 
 <script>
     // 🚨 นำลิงก์ Web App (ที่ลงท้ายด้วย /exec) มาวางในเครื่องหมายคำพูดด้านล่างนี้ครับ 🚨
-    const GAS_API_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbzouH3xBShb8Lt2WOqFxTyo2s10_M5IYfrQdkhoPujMhZ_Jh3y4OLlTy4fK6PbCARU-1A/exec"; 
+    const GAS_API_URL = "https://script.google.com/a/macros/mahidol.ac.th/s/AKfycbzG-vmYbTABNtacUK3oXqkkIlGc-YamaJsap3NKUHCv/dev"; 
+</script>
+
+    <!-- 🌉 ซ่อนสะพานเชื่อม Iframe ไว้ (คนใช้จะไม่เห็น) -->
+<iframe id="gasBridge" src="" style="display: none;"></iframe>
+
+<script>
+    // สั่งให้โหลดหน้าสะพานเชื่อมของ Google ทันทีที่เปิดเว็บ
+    document.getElementById('gasBridge').src = GAS_BRIDGE_URL;
 </script>
 
 <div class="header d-flex justify-content-between align-items-center mb-4">
@@ -223,6 +231,32 @@
         renderCart();
     }
 
+    // -----------------------------------------------------
+    // 🌉 ฟังก์ชันส่งข้อความไปหา Iframe สะพานเชื่อม
+    // -----------------------------------------------------
+    function callBridge(action, payload) {
+        return new Promise((resolve) => {
+            const bridgeWindow = document.getElementById('gasBridge').contentWindow;
+            const targetAction = action === 'searchUser' ? 'searchResult' : 'saveResult';
+            
+            // รอฟังเสียงตอบกลับจาก Iframe
+            const listener = function(event) {
+                // กรองเฉพาะข้อความที่มาจาก Google และเป็นชื่อ Action ที่เราต้องการ
+                if (event.data && event.data.action === targetAction) {
+                    window.removeEventListener('message', listener); // เลิกฟัง
+                    resolve(event.data); // ส่งผลลัพธ์ไปทำงานต่อ
+                }
+            };
+            window.addEventListener('message', listener);
+            
+            // ตะโกนส่งข้อมูลเข้าไปใน Iframe
+            bridgeWindow.postMessage({ action: action, ...payload }, '*');
+        });
+    }
+
+    // -----------------------------------------------------
+    // 🔍 ฟังก์ชันค้นหา (อัปเดตใช้ Bridge)
+    // -----------------------------------------------------
     async function searchUser() {
         const sapId = document.getElementById('sapInput').value.trim();
         if(!sapId) { showAlert('error', 'กรุณาระบุ SAP ID'); return; }
@@ -230,16 +264,13 @@
         showAlert('loading', 'กำลังค้นหา...');
         
         try {
-            const res = await fetch(GAS_API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'searchUser', sapId: sapId })
-            });
-            const data = await res.json();
+            // เรียกใช้ Bridge แทน fetch
+            const data = await callBridge('searchUser', { sapId: sapId });
             
             if(data.success) {
                 alertModal.hide();
                 currentUser = data.data;
-                currentUser.userType = 'บุคลากรภายใน'; // แปะป้ายประเภท
+                currentUser.userType = 'บุคลากรภายใน'; 
 
                 document.getElementById('userName').textContent = currentUser.fullName;
                 document.getElementById('userDept').textContent = currentUser.department;
@@ -248,10 +279,51 @@
                 document.getElementById('userInfoBox').classList.remove('d-none');
                 document.getElementById('serviceSection').style = "opacity: 1; pointer-events: auto;";
             } else {
-                showAlert('error', data.message);
+                showAlert('error', data.error || 'ไม่พบข้อมูล');
             }
         } catch (err) {
-            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ Server');
+            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        }
+    }
+
+    // -----------------------------------------------------
+    // 💾 ฟังก์ชันบันทึก (อัปเดตใช้ Bridge)
+    // -----------------------------------------------------
+    async function saveData() {
+        if(!currentUser) { showAlert('error', 'กรุณาระบุตัวตนก่อน'); return; }
+        if(cart.length === 0) { showAlert('error', 'ตะกร้าว่างเปล่า'); return; }
+
+        showAlert('loading', 'กำลังบันทึกข้อมูล...');
+
+        const records = cart.map(item => ({
+            "ประเภทผู้ใช้": currentUser.userType,
+            "SAP ID": currentUser.sapId,
+            "ชื่อ-นามสกุล": currentUser.fullName,
+            "หน่วยงาน": currentUser.department,
+            "Job": currentUser.job,
+            "สถานะบุคลากร": currentUser.personnelStatus,
+            "รหัสบริการ": item.code,
+            "ชื่อบริการ": item.name,
+            "รายละเอียดบริการ": item.details,
+            "จำนวน": item.count,
+            "ผู้ดำเนินการ": "Fast Track"
+        }));
+
+        try {
+            // เรียกใช้ Bridge แทน fetch
+            const data = await callBridge('saveRecord', { records: records });
+            
+            if(data.success) {
+                showAlert('success', 'บันทึกสำเร็จ!', () => {
+                    document.getElementById('typeInternal').checked = true;
+                    toggleUserType('internal');
+                    document.getElementById('sapInput').value = '';
+                });
+            } else {
+                showAlert('error', 'บันทึกไม่สำเร็จ: ' + data.error);
+            }
+        } catch (err) {
+            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
         }
     }
 
@@ -295,47 +367,6 @@
         });
     }
 
-    async function saveData() {
-        if(!currentUser) { showAlert('error', 'กรุณาระบุตัวตนก่อน'); return; }
-        if(cart.length === 0) { showAlert('error', 'ตะกร้าว่างเปล่า'); return; }
-
-        showAlert('loading', 'กำลังบันทึกข้อมูล...');
-
-        const records = cart.map(item => ({
-            "ประเภทผู้ใช้": currentUser.userType,
-            "SAP ID": currentUser.sapId,
-            "ชื่อ-นามสกุล": currentUser.fullName,
-            "หน่วยงาน": currentUser.department,
-            "Job": currentUser.job,
-            "สถานะบุคลากร": currentUser.personnelStatus,
-            "รหัสบริการ": item.code,
-            "ชื่อบริการ": item.name,
-            "รายละเอียดบริการ": item.details,
-            "จำนวน": item.count,
-            "ผู้ดำเนินการ": "Fast Track" // ใส่เป็นลายเซ็นว่ามาจากช่องทางนี้
-        }));
-
-        try {
-            const res = await fetch(GAS_API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'saveRecord', records: records })
-            });
-            const data = await res.json();
-            
-            if(data.success) {
-                showAlert('success', 'บันทึกสำเร็จ!', () => {
-                    // รีเซ็ตหน้าจอทั้งหมดเพื่อรับคนต่อไป
-                    document.getElementById('typeInternal').checked = true;
-                    toggleUserType('internal');
-                    document.getElementById('sapInput').value = '';
-                });
-            } else {
-                showAlert('error', 'บันทึกไม่สำเร็จ: ' + data.message);
-            }
-        } catch (err) {
-            showAlert('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
-        }
-    }
 
     // ดักการกด Enter ในช่อง SAP
     document.getElementById('sapInput').addEventListener('keypress', function(e) {
