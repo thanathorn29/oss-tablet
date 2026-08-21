@@ -359,6 +359,9 @@
 
             // --- SUCCESS ---
             if (currentStatus === 'success') {
+                // 🛑 ตัวกรองความปลอดภัย: ถ้าตะกร้าว่าง หรือไม่มี SAP ให้อิกนอร์ไปเลย
+                if (!data.cart || data.cart.length === 0) return;
+                
                 if (isStatusChanged) {
                     showScreen('screen-success');
                     
