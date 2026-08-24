@@ -258,17 +258,15 @@
                 warningBox.classList.remove('d-flex');
             }
 
-            // ถ้าอยู่หน้า Home หรือกำลังโชว์ Success ไม่ต้องจับเวลาเตือน (Success มีตัวนับเวลาจบในตัว)
             if (currentStatus === 'idle' || currentStatus === 'success') {
                 return; 
             }
 
             if (currentStatus === 'evaluating') {
-                // หน้าประเมินให้เวลา 120 วินาที ถ้านิ่งให้ปิดไปเลย (ไม่ต้องเด้งเตือน)
                 idleTimeout = setTimeout(() => { closeEvaluation(); }, 120000);
             } else {
-                // หน้าระบุตัวตน หรือ รอคิว: 90 วินาที จะเด้งเตือน
-                idleTimeout = setTimeout(() => { showWarningCountdown(); }, 90000);
+                // หน้าระบุตัวตน หรือ รอคิว: 60 วินาที เด้งเตือน
+                idleTimeout = setTimeout(() => { showWarningCountdown(); }, 60000);
             }
         }
 
@@ -452,11 +450,17 @@
         // --- Evaluation ---
         function openEvaluation() {
             clearTimeout(autoResetTimer); 
+            
+            // 🌟 1. บังคับเปลี่ยนสถานะทันที เพื่อให้นาฬิการู้ตัวว่าต้องเริ่มเดิน
+            currentStatus = 'evaluating'; 
             sessionRef.update({ status: 'evaluating' });
+            
             document.getElementById('eval-modal').classList.remove('d-none');
             document.getElementById('eval-selector').classList.remove('d-none');
             const oldIframe = document.getElementById('eval-iframe');
             if (oldIframe) oldIframe.remove();
+            
+            // 🌟 2. สั่งเริ่มจับเวลา (ตอนนี้ระบบรู้แล้วว่าเป็นหน้า evaluating)
             resetActivityTimer(); 
         }
 
