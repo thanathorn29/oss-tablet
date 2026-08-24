@@ -263,10 +263,10 @@
             }
 
             if (currentStatus === 'evaluating') {
-                idleTimeout = setTimeout(() => { closeEvaluation(); }, 120000);
+                idleTimeout = setTimeout(() => { closeEvaluation(); }, 180000);
             } else {
-                // หน้าระบุตัวตน หรือ รอคิว: 60 วินาที เด้งเตือน
-                idleTimeout = setTimeout(() => { showWarningCountdown(); }, 60000);
+                // หน้าระบุตัวตน หรือ รอคิว: 90 วินาที เด้งเตือน
+                idleTimeout = setTimeout(() => { showWarningCountdown(); }, 90000);
             }
         }
 
@@ -290,7 +290,7 @@
         }
 
         // ดักจับการสัมผัสจอทุกประเภท เพื่อรีเซ็ตเวลา
-        ['touchstart', 'mousedown', 'mousemove', 'scroll'].forEach(evt => {
+        ['touchstart', 'mousedown', 'scroll'].forEach(evt => {
             window.addEventListener(evt, resetActivityTimer, true);
         });
 
