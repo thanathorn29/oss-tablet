@@ -196,6 +196,27 @@
 
     </div>
 
+    <!-- Modal ไม่พบข้อมูล SAP ID -->
+        <div class="modal fade" id="notFoundModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                    <div class="modal-body text-center p-5">
+                        <i class="bi bi-person-exclamation text-warning mb-3" style="font-size: 5rem;"></i>
+                        <h2 class="fw-bold mb-3 text-dark">ไม่พบข้อมูล SAP ID ในระบบ</h2>
+                        <p class="text-muted fs-5 mb-4">หากท่านเพิ่งเริ่มงานใหม่ ข้อมูลอาจจะยังไม่อัปเดต<br>ท่านต้องการทำรายการต่อหรือไม่?</p>
+                        <div class="d-grid gap-3">
+                            <button class="btn btn-primary btn-lg rounded-pill py-3 fs-5" onclick="proceedAsNewUser()">
+                                <i class="bi bi-person-check-fill me-2"></i> ใช่, ทำรายการต่อ
+                            </button>
+                            <button class="btn btn-light btn-lg rounded-pill py-3 fs-5" onclick="retrySapInput()">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i> พิมพ์รหัสใหม่อีกครั้ง
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     <script>
         const FORMS = {
             internal: 'https://docs.google.com/forms/d/e/1FAIpQLScgU45KjBDUq2hGdgRBYWCGMqj0e85MhqPyjTlyOM3kOZ6kGw/viewform?embedded=true',
@@ -357,6 +378,33 @@
             sessionRef.update({ sapInput: sapBuffer, isTabletTyping: true });
         }
 
+        // 🔴 ฟังก์ชันสำหรับ Modal กรณีไม่พบ SAP ID
+        function retrySapInput() {
+            const modalEl = document.getElementById('notFoundModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+            
+            sapBuffer = '';
+            updateSAPDisplay('');
+            sessionRef.update({ status: 'idle', sapInput: '', isTabletTyping: true });
+        }
+
+        function proceedAsNewUser() {
+            const modalEl = document.getElementById('notFoundModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+            
+            // ข้ามไปหน้าถัดไปเลย พร้อมส่งข้อมูลจำลองไปให้จอเจ้าหน้าที่
+            sessionRef.update({
+                status: 'active',
+                userInfo: {
+                    name: 'บุคลากรใหม่ (รอตรวจสอบ)',
+                    dept: 'N/A',
+                    job: 'N/A',
+                    status: 'รอการตรวจสอบ'
+                },
+                isTabletTyping: false
+            });
+        }
+
         function resetToHome() {
             currentStatus = 'idle';
             sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null, cart: [], userInfo: null });
@@ -399,6 +447,14 @@
             }
 
             if (currentStatus === 'loading') { showScreen('screen-loading'); return; }
+
+            // 🔴 เพิ่มบล็อกนี้เข้าไป: ดักจับตอนหาชื่อไม่เจอ
+            if (currentStatus === 'not_found') {
+                showScreen('screen-numpad');
+                const notFoundModal = new bootstrap.Modal(document.getElementById('notFoundModal'));
+                notFoundModal.show();
+                return;
+            }
 
             if (currentStatus === 'active') {
                 showScreen('screen-active');
