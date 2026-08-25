@@ -538,18 +538,7 @@
             resetToHome();
         }
 
-        document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') {
-        // เมื่อ Tablet ถูกเปิดหน้าจอกลับมา ให้เช็คว่าขาดการเชื่อมต่อไปหรือเปล่า
-        sessionRef.once('value').then(snap => {
-            const data = snap.val();
-            // ถ้าตื่นมาแล้วพบว่า สถานะบนเน็ตเป็น idle ไปแล้ว แต่หน้าจอตัวเองยังค้างหน้าอื่นอยู่
-            if (data && data.status === 'idle' && currentStatus !== 'idle') {
-                resetToHome();
-            }
-        });
-    }
-});
+        
     </script>
 </body>
 </html>
