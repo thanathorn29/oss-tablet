@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>กดรับบัตรคิว - One Stop Service</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<style>
+  :root {
+    --brand: #0d47a1;
+    --brand-dark: #002171;
+    --brand-light: #e3f2fd;
+    --amber: #ffc107;
+  }
+  * { user-select: none; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Kanit', sans-serif;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background: #f2f5f8;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .kiosk-header {
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    color: #fff;
+    padding: 1.2rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  }
+  .kiosk-header .brand { font-size: 1.6rem; font-weight: 700; display: flex; align-items: center; gap: .6rem; }
+  .kiosk-header .clock { font-size: 1.6rem; font-weight: 600; letter-spacing: 1px; }
+
+  .kiosk-body {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+  }
+
+  /* ---------- หน้าเลือกประเภท ---------- */
+  #screen-select { width: 100%; max-width: 1000px; text-align: center; }
+  #screen-select h1 { font-size: 2.4rem; font-weight: 700; color: #263238; margin-bottom: .5rem; }
+  #screen-select p.sub { font-size: 1.25rem; color: #607d8b; margin-bottom: 2.5rem; }
+
+  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  .type-btn {
+    background: #fff;
+    border: 3px solid transparent;
+    border-radius: 28px;
+    padding: 3rem 1.5rem;
+    box-shadow: 0 10px 30px rgba(13,71,161,0.08);
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .type-btn:active { transform: scale(0.96); }
+  .type-btn .icon-circle {
+    width: 110px; height: 110px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.5rem auto; font-size: 3.2rem;
+  }
+  .type-btn.doc .icon-circle { background: var(--brand-light); color: var(--brand); }
+  .type-btn.ask .icon-circle { background: #fff8e1; color: #c79100; }
+  .type-btn .label { font-size: 1.7rem; font-weight: 700; color: #263238; }
+  .type-btn .desc { font-size: 1.05rem; color: #90a4ae; margin-top: .4rem; }
+  .type-btn.doc:hover, .type-btn.doc:active { border-color: var(--brand); }
+  .type-btn.ask:hover, .type-btn.ask:active { border-color: var(--amber); }
+
+  /* ---------- หน้าออกบัตรคิว ---------- */
+  #screen-ticket { display: none; width: 100%; max-width: 480px; }
+  .ticket-card {
+    background: #fff;
+    border-radius: 28px;
+    box-shadow: 0 15px 45px rgba(0,0,0,0.12);
+    padding: 2.5rem 2rem;
+    text-align: center;
+  }
+  .pill-status {
+    display: inline-block;
+    background: var(--amber);
+    color: #4a3600;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: .45rem 1.4rem;
+    border-radius: 50px;
+    margin-bottom: 1.2rem;
+  }
+  .ticket-caption { font-size: 1.1rem; color: #607d8b; margin-bottom: .3rem; }
+  .ticket-number {
+    font-size: 5.5rem;
+    font-weight: 700;
+    color: #1b2b3a;
+    letter-spacing: 2px;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+  }
+  .ticket-divider { border: none; border-top: 2px dashed #e0e6ea; margin: 1.5rem 0; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .stat-box { background: #f7f9fb; border-radius: 16px; padding: 1rem; }
+  .stat-box .stat-label { font-size: .95rem; color: #78909c; margin-bottom: .3rem; }
+  .stat-box .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--brand); }
+  .ticket-hint { margin-top: 1.8rem; font-size: .95rem; color: #90a4ae; }
+  .ticket-countdown { font-size: .85rem; color: #b0bec5; margin-top: .6rem; }
+
+  /* ---------- หน้าปิดให้บริการ (นอกเวลาทำการ) ---------- */
+  #screen-closed {
+    display: none;
+    text-align: center;
+    max-width: 600px;
+  }
+  #screen-closed i { font-size: 6rem; color: #90a4ae; margin-bottom: 1.5rem; display: block; }
+  #screen-closed h2 { font-size: 2rem; font-weight: 700; color: #37474f; margin-bottom: .8rem; }
+  #screen-closed p { font-size: 1.2rem; color: #78909c; }
+
+  /* ---------- overlay โหลด/error ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.92);
+    display: none; align-items: center; justify-content: center; flex-direction: column;
+    z-index: 999;
+  }
+</style>
+</head>
+<body>
+
+  <div class="kiosk-header">
+    <div class="brand"><i class="bi bi-ticket-perforated-fill"></i> กดรับบัตรคิว</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+
+  <div class="kiosk-body">
+
+    <!-- หน้าเลือกประเภท -->
+    <div id="screen-select">
+      <h1>กรุณาเลือกประเภทบริการ</h1>
+      <p class="sub">แตะเลือกหมวดที่ท่านต้องการ เพื่อรับบัตรคิว</p>
+      <div class="type-grid">
+        <div class="type-btn doc" onclick="issueTicket('A')">
+          <div class="icon-circle"><i class="bi bi-file-earmark-text-fill"></i></div>
+          <div class="label">ส่งเอกสาร</div>
+          <div class="desc">ยื่น / รับเอกสารต่าง ๆ</div>
+        </div>
+        <div class="type-btn ask" onclick="issueTicket('B')">
+          <div class="icon-circle"><i class="bi bi-chat-dots-fill"></i></div>
+          <div class="label">ติดต่อสอบถาม</div>
+          <div class="desc">สอบถามข้อมูล / ปรึกษา</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- หน้าออกบัตรคิว -->
+    <div id="screen-ticket">
+      <div class="ticket-card">
+        <span class="pill-status">รอเรียกบริการ</span>
+        <div class="ticket-caption">หมายเลขคิวของคุณ</div>
+        <div class="ticket-number" id="ticketNumber">-</div>
+        <hr class="ticket-divider">
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-label">หมวดบริการ</div>
+            <div class="stat-value" id="ticketCategory">-</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">จำนวนคิวก่อนหน้า</div>
+            <div class="stat-value" id="ticketAhead">-</div>
+          </div>
+        </div>
+        <div class="ticket-hint"><i class="bi bi-volume-up-fill me-1"></i>กรุณานั่งรอ ระบบจะเรียกคิวเมื่อถึงลำดับของท่าน</div>
+        <div class="ticket-countdown">หน้าจอจะกลับสู่หน้าหลักใน <span id="countdownSec">10</span> วินาที</div>
+      </div>
+    </div>
+
+    <!-- หน้าปิดให้บริการนอกเวลาทำการ -->
+    <div id="screen-closed">
+      <i class="bi bi-moon-stars-fill"></i>
+      <h2>ขณะนี้ปิดให้บริการ</h2>
+      <p>เปิดให้บริการทุกวันทำการ เวลา 08:00 - 16:00 น.<br>ขออภัยในความไม่สะดวก</p>
+    </div>
+
+  </div>
+
+  <!-- overlay ตอนกำลังออกบัตรคิว -->
+  <div class="overlay" id="loadingOverlay">
+    <div class="spinner-border text-primary mb-3" style="width:3.5rem;height:3.5rem;" role="status"></div>
+    <div class="fs-5 fw-bold text-secondary">กำลังออกบัตรคิว...</div>
+  </div>
+
+<script>
+  // ============================================================
+  // 🔧 Firebase Config (โปรเจกต์ onestopservice-queue แยกต่างหาก)
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyCE1_Z5f21NCAPWSzp-mgA1nmreBLePkvU",
+    authDomain: "onestopservice-queue.firebaseapp.com",
+    databaseURL: "https://onestopservice-queue-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "onestopservice-queue",
+    storageBucket: "onestopservice-queue.firebasestorage.app",
+    messagingSenderId: "138242752053",
+    appId: "1:138242752053:web:80f5098253c64a0396bb7c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // ============================================================
+  // ⏰ เวลาทำการ
+  // ============================================================
+  const OPEN_HOUR = 8;   // 08:00
+  const CLOSE_HOUR = 16; // 16:00
+
+  function isWithinBusinessHours() {
+    const now = new Date();
+    const h = now.getHours();
+    return h >= OPEN_HOUR && h < CLOSE_HOUR;
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('th-TH');
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function getTodayDateString() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  const CATEGORY_LABEL = { A: 'ส่งเอกสาร', B: 'ติดต่อสอบถาม' };
+
+  // ============================================================
+  // 🖥️ การสลับหน้าจอ
+  // ============================================================
+  function showScreen(id) {
+    ['screen-select', 'screen-ticket', 'screen-closed'].forEach(s => {
+      document.getElementById(s).style.display = (s === id) ? 'block' : 'none';
+    });
+  }
+
+  let businessHoursTicker = null;
+  function checkBusinessHoursLoop() {
+    if (isWithinBusinessHours()) {
+      // ถ้ากำลังอยู่หน้าปิดให้บริการ ให้กลับมาหน้าเลือกประเภท
+      if (document.getElementById('screen-closed').style.display === 'block') {
+        showScreen('screen-select');
+      }
+    } else {
+      showScreen('screen-closed');
+    }
+  }
+  checkBusinessHoursLoop();
+  businessHoursTicker = setInterval(checkBusinessHoursLoop, 15000); // เช็คทุก 15 วิ พอสำหรับจับช่วงเปิด/ปิด
+
+  // ============================================================
+  // 🎫 ออกบัตรคิว (ใช้ Transaction กันเลขชนกัน + lazy reset รายวัน)
+  // ============================================================
+  let ticketAheadListenerRef = null;
+
+  function issueTicket(category) {
+    if (!isWithinBusinessHours()) {
+      showScreen('screen-closed');
+      return;
+    }
+
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    const today = getTodayDateString();
+    const counterRef = db.ref('queue/counters');
+
+    counterRef.transaction(function (current) {
+      if (!current || current.resetDate !== today) {
+        current = { A: 0, B: 0, resetDate: today };
+      }
+      current[category] = (current[category] || 0) + 1;
+      return current;
+    }, function (error, committed, snapshot) {
+      document.getElementById('loadingOverlay').style.display = 'none';
+
+      if (error) {
+        alert('เกิดข้อผิดพลาดในการออกบัตรคิว กรุณาลองใหม่อีกครั้ง');
+        console.error(error);
+        return;
+      }
+      if (!committed) {
+        alert('ระบบไม่สามารถออกบัตรคิวได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+        return;
+      }
+
+      const finalCounters = snapshot.val();
+      const num = finalCounters[category];
+      const displayNo = category + String(num).padStart(3, '0');
+      const createdAt = firebase.database.ServerValue.TIMESTAMP;
+
+      db.ref('queue/tickets/' + displayNo).set({
+        category: category,
+        displayNo: displayNo,
+        status: 'waiting',
+        createdAt: createdAt,
+        calledAt: null,
+        calledToTablet: null
+      }).then(function () {
+        showTicketScreen(displayNo, category);
+      }).catch(function (err) {
+        alert('บันทึกบัตรคิวไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+        console.error(err);
+      });
+    });
+  }
+
+  // ============================================================
+  // 🖨️ แสดงหน้าบัตรคิว + นับจำนวนคิวก่อนหน้าแบบเรียลไทม์
+  // ============================================================
+  let countdownTimer = null;
+  let countdownValue = 10;
+
+  function showTicketScreen(displayNo, category) {
+    document.getElementById('ticketNumber').textContent = displayNo;
+    document.getElementById('ticketCategory').textContent = CATEGORY_LABEL[category] || category;
+    document.getElementById('ticketAhead').textContent = '-';
+    showScreen('screen-ticket');
+
+    // เลิกฟังตัวเก่า (ถ้ามี) ก่อนเริ่มฟังใหม่
+    if (ticketAheadListenerRef) {
+      ticketAheadListenerRef.off();
+    }
+
+    // ฟังรายการ ticket ทั้งหมดของหมวดนี้ เพื่อคำนวณจำนวนคิวก่อนหน้าแบบสด
+    ticketAheadListenerRef = db.ref('queue/tickets')
+      .orderByChild('category')
+      .equalTo(category);
+
+    ticketAheadListenerRef.on('value', function (snapshot) {
+      const allTickets = snapshot.val() || {};
+      const myTicket = allTickets[displayNo];
+      if (!myTicket || myTicket.createdAt == null) return;
+
+      let aheadCount = 0;
+      Object.values(allTickets).forEach(function (t) {
+        if (t.status === 'waiting' && t.createdAt != null && t.createdAt < myTicket.createdAt) {
+          aheadCount++;
+        }
+      });
+      document.getElementById('ticketAhead').textContent = aheadCount + ' คิว';
+    });
+
+    startCountdown();
+  }
+
+  function startCountdown() {
+    clearInterval(countdownTimer);
+    countdownValue = 10;
+    document.getElementById('countdownSec').textContent = countdownValue;
+
+    countdownTimer = setInterval(function () {
+      countdownValue--;
+      document.getElementById('countdownSec').textContent = countdownValue;
+      if (countdownValue <= 0) {
+        clearInterval(countdownTimer);
+        returnToHome();
+      }
+    }, 1000);
+  }
+
+  function returnToHome() {
+    if (ticketAheadListenerRef) {
+      ticketAheadListenerRef.off();
+      ticketAheadListenerRef = null;
+    }
+    clearInterval(countdownTimer);
+    if (isWithinBusinessHours()) {
+      showScreen('screen-select');
+    } else {
+      showScreen('screen-closed');
+    }
+  }
+</script>
+</body>
+</html>
