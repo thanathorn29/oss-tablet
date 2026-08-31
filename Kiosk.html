@@ -281,43 +281,82 @@
     const today = getTodayDateString();
     const counterRef = db.ref('queue/counters');
 
+    let previousResetDate = null; // เก็บวันที่เดิมไว้ เผื่อต้องย้ายคิวของวันก่อนหน้าไป archive
+
     counterRef.transaction(function (current) {
+      if (current && current.resetDate) {
+        previousResetDate = current.resetDate;
+      }
       if (!current || current.resetDate !== today) {
         current = { A: 0, B: 0, resetDate: today };
       }
       current[category] = (current[category] || 0) + 1;
       return current;
     }, function (error, committed, snapshot) {
-      document.getElementById('loadingOverlay').style.display = 'none';
-
       if (error) {
+        document.getElementById('loadingOverlay').style.display = 'none';
         alert('เกิดข้อผิดพลาดในการออกบัตรคิว กรุณาลองใหม่อีกครั้ง');
         console.error(error);
         return;
       }
       if (!committed) {
+        document.getElementById('loadingOverlay').style.display = 'none';
         alert('ระบบไม่สามารถออกบัตรคิวได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
         return;
       }
 
       const finalCounters = snapshot.val();
-      const num = finalCounters[category];
-      const displayNo = category + String(num).padStart(3, '0');
-      const createdAt = firebase.database.ServerValue.TIMESTAMP;
+      const isNewDay = (previousResetDate !== null && previousResetDate !== today);
 
-      db.ref('queue/tickets/' + displayNo).set({
-        category: category,
-        displayNo: displayNo,
-        status: 'waiting',
-        createdAt: createdAt,
-        calledAt: null,
-        calledToTablet: null
-      }).then(function () {
-        showTicketScreen(displayNo, category);
-      }).catch(function (err) {
-        alert('บันทึกบัตรคิวไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-        console.error(err);
+      // ถ้าเป็นการเปลี่ยนวันใหม่ ให้ย้ายคิวของวันก่อนหน้าไปเก็บสำรองก่อน แล้วค่อยล้าง tickets/ ปัจจุบัน
+      // เพื่อไม่ให้คิวเก่าที่ยังค้างสถานะ waiting มาปนกับ "จำนวนคิวก่อนหน้า" ของวันนี้
+      const cleanupPromise = isNewDay
+        ? archiveAndClearTickets(previousResetDate)
+        : Promise.resolve();
+
+      cleanupPromise.finally(function () {
+        createTicketEntry(category, finalCounters);
       });
+    });
+  }
+
+  function createTicketEntry(category, finalCounters) {
+    const num = finalCounters[category];
+    const displayNo = category + String(num).padStart(3, '0');
+    const createdAt = firebase.database.ServerValue.TIMESTAMP;
+
+    db.ref('queue/tickets/' + displayNo).set({
+      category: category,
+      displayNo: displayNo,
+      status: 'waiting',
+      createdAt: createdAt,
+      calledAt: null,
+      calledToTablet: null
+    }).then(function () {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      showTicketScreen(displayNo, category);
+    }).catch(function (err) {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      alert('บันทึกบัตรคิวไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      console.error(err);
+    });
+  }
+
+  // เก็บสำรองคิวของวันก่อนหน้าไว้ที่ queue/archive/{วันที่นั้น} แล้วค่อยล้าง queue/tickets/ ปัจจุบัน
+  // ทำครั้งเดียวตอนตรวจพบว่าเปลี่ยนวันใหม่ (lazy reset) กันคิวเก่าค้างมาปนกับการนับคิววันนี้
+  function archiveAndClearTickets(previousDate) {
+    return db.ref('queue/tickets').once('value').then(function (snapshot) {
+      const oldTickets = snapshot.val();
+      if (!oldTickets) return Promise.resolve();
+
+      return db.ref('queue/archive/' + previousDate).set(oldTickets)
+        .then(function () {
+          return db.ref('queue/tickets').remove();
+        });
+    }).catch(function (err) {
+      console.error('เก็บ archive คิวเก่าไม่สำเร็จ:', err);
+      // แม้ archive ไม่สำเร็จ ก็ยังลบ tickets เดิมทิ้งเพื่อไม่ให้ค้างปนกับวันนี้
+      return db.ref('queue/tickets').remove();
     });
   }
 
