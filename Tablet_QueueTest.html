@@ -294,14 +294,13 @@
             overlay.classList.add('d-flex');
 
             try {
-                window.speechSynthesis.cancel(); // กันเสียงซ้อนจากคิวก่อนหน้า
-                const utterance = new SpeechSynthesisUtterance('เชิญคิวหมายเลข ' + spellOutTicket(ticketNo));
-                utterance.lang = 'th-TH';
-                utterance.rate = 0.9;
-                window.speechSynthesis.speak(utterance);
-            } catch (e) {
-                console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
-            }
+    const text = 'เชิญคิวหมายเลข ' + spellOutTicket(ticketNo);
+    const ttsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&q=' + encodeURIComponent(text) + '&tl=th&client=tw-ob';
+    const queueAudio = new Audio(ttsUrl);
+    queueAudio.play();
+} catch (e) {
+    console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
+}
 
             setTimeout(function () {
                 overlay.classList.add('d-none');
@@ -398,10 +397,18 @@
             }, 1000);
         }
 
-        // ดักจับการสัมผัสจอทุกประเภท เพื่อรีเซ็ตเวลา
-        ['touchstart', 'mousedown', 'scroll'].forEach(evt => {
-            window.addEventListener(evt, resetActivityTimer, true);
-        });
+        // ดักจับการสัมผัสจอ เพื่อรีเซ็ตเวลา และปลดล็อกสิทธิ์เล่นเสียงของเบราว์เซอร์
+let isAudioUnlocked = false;
+['touchstart', 'mousedown', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, function() {
+        resetActivityTimer();
+        if (!isAudioUnlocked) {
+            // เล่นไฟล์เสียงเงียบสั้นๆ 1 ครั้งเพื่อเปิดอนุญาตเสียงอัตโนมัติในเบราว์เซอร์
+            const dummy = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+            dummy.play().then(() => { isAudioUnlocked = true; }).catch(() => {});
+        }
+    }, true);
+});
 
         // --- UI Updates ---
         function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('th-TH'); }
