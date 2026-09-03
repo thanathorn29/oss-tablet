@@ -288,47 +288,30 @@
 
         // โชว์ป้ายประกาศ + พูดเสียงเรียกคิว แล้วปลดล็อกให้กดใช้งานได้หลังจากนั้น
         function announceQueueCall(ticketNo) {
-    try {
-        if (!('speechSynthesis' in window)) {
-            console.error('[Queue System] เบราว์เซอร์ไม่รองรับ Speech Synthesis');
-            return;
+            document.getElementById('calledTicketNumber').textContent = ticketNo;
+            const overlay = document.getElementById('screen-queue-call-announce');
+            overlay.classList.remove('d-none');
+            overlay.classList.add('d-flex');
+
+            try {
+                window.speechSynthesis.cancel(); // กันเสียงซ้อนจากคิวก่อนหน้า
+                const utterance = new SpeechSynthesisUtterance('เชิญคิวหมายเลข ' + spellOutTicket(ticketNo));
+                utterance.lang = 'th-TH';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
+            }
+
+            setTimeout(function () {
+                overlay.classList.add('d-none');
+                overlay.classList.remove('d-flex');
+                queueUnlocked = true;
+                if (currentStatus === 'idle') {
+                    showScreen('screen-home');
+                }
+            }, 5000);
         }
-
-        // ยกเลิกคิวเสียงที่ค้างอยู่ก่อนหน้า
-        window.speechSynthesis.cancel();
-
-        const text = 'เชิญคิวหมายเลข ' + spellOutTicket(ticketNo);
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'th-TH';
-        utterance.rate = 0.9;
-
-        // ดึงรายการเสียงในเครื่อง/เบราว์เซอร์
-        const voices = window.speechSynthesis.getVoices();
-        const thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang.includes('th'));
-
-        if (thaiVoice) {
-            utterance.voice = thaiVoice;
-        }
-
-        window.speechSynthesis.speak(utterance);
-    } catch (e) {
-        console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
-    }
-}
-
-// โหลดรายการเสียงเตรียมไว้ทันทีที่เปิดหน้าเว็บ
-if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = function() {
-        window.speechSynthesis.getVoices();
-    };
-}
-
-// โหลดรายชื่อเสียงล่วงหน้าทันทีเมื่อเบราว์เซอร์พร้อม (ป้องกันปัญหา Chrome โหลดเสียงไม่ทันตอนเปิดหน้าเว็บ)
-if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = function() {
-        window.speechSynthesis.getVoices();
-    };
-}
 
         // ฟังว่ามีการเรียกคิวมาที่จอนี้หรือยัง (เจ้าหน้าที่จะเป็นคนเขียนค่านี้ในขั้นถัดไป)
         queueDb.ref('_connectionTest/queue/currentServing/' + tabletId).on('value', function (snapshot) {
@@ -415,18 +398,10 @@ if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !=
             }, 1000);
         }
 
-        // ดักจับการสัมผัสจอ เพื่อรีเซ็ตเวลา และปลดล็อกสิทธิ์เล่นเสียงของเบราว์เซอร์
-let isAudioUnlocked = false;
-['touchstart', 'mousedown', 'scroll'].forEach(evt => {
-    window.addEventListener(evt, function() {
-        resetActivityTimer();
-        if (!isAudioUnlocked) {
-            // เล่นไฟล์เสียงเงียบสั้นๆ 1 ครั้งเพื่อเปิดอนุญาตเสียงอัตโนมัติในเบราว์เซอร์
-            const dummy = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
-            dummy.play().then(() => { isAudioUnlocked = true; }).catch(() => {});
-        }
-    }, true);
-});
+        // ดักจับการสัมผัสจอทุกประเภท เพื่อรีเซ็ตเวลา
+        ['touchstart', 'mousedown', 'scroll'].forEach(evt => {
+            window.addEventListener(evt, resetActivityTimer, true);
+        });
 
         // --- UI Updates ---
         function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('th-TH'); }
