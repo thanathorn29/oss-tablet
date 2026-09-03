@@ -240,6 +240,38 @@
         const tabletId = params.get('tabletId') || 'tablet1';
         const sessionRef = firebase.database().ref('sessions/' + tabletId);
 
+        // ============================================================
+        // 🆕 STEP 5a: เชื่อมต่อ Firebase โปรเจกต์ "ระบบคิว" (instance ที่ 2)
+        // ตั้งชื่อ instance แยกว่า "queueApp" เพื่อไม่ให้ไปทับ/ยุ่งกับ
+        // การเชื่อมต่อ Firebase เดิม (sessions/tabletX) ด้านบนเลยแม้แต่นิดเดียว
+        // ขั้นนี้แค่ทดสอบว่าเชื่อมต่อได้จริง ยังไม่มีผลต่อ UI หรือพฤติกรรมใดๆ
+        // ============================================================
+        const queueFirebaseConfig = {
+            apiKey: "AIzaSyCE1_Z5f21NCAPWSzp-mgA1nmreBLePkvU",
+            authDomain: "onestopservice-queue.firebaseapp.com",
+            databaseURL: "https://onestopservice-queue-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "onestopservice-queue",
+            storageBucket: "onestopservice-queue.firebasestorage.app",
+            messagingSenderId: "138242752053",
+            appId: "1:138242752053:web:80f5098253c64a0396bb7c"
+        };
+        const queueApp = firebase.initializeApp(queueFirebaseConfig, "queueApp");
+        const queueDb = queueApp.database();
+
+        // เขียนค่าทดสอบเล็กๆ เพื่อพิสูจน์ว่าเชื่อมต่อโปรเจกต์คิวสำเร็จ
+        // (ไม่กระทบระบบเดิมเลย เป็นแค่ node ทดสอบแยกต่างหาก ลบทิ้งได้ทุกเมื่อ)
+        queueDb.ref('_connectionTest/' + tabletId).set({
+            connectedAt: firebase.database.ServerValue.TIMESTAMP,
+            note: 'Tablet_QueueTest.html เชื่อมต่อโปรเจกต์คิวสำเร็จ'
+        }).then(() => {
+            console.log('[Queue System] เชื่อมต่อ Firebase โปรเจกต์คิวสำเร็จ');
+        }).catch((err) => {
+            console.error('[Queue System] เชื่อมต่อ Firebase โปรเจกต์คิวไม่สำเร็จ:', err);
+        });
+        // ============================================================
+        // 🆕 จบส่วน STEP 5a
+        // ============================================================
+
         let currentStatus = ''; 
         let sapBuffer = '';
 
