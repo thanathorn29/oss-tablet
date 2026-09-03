@@ -96,12 +96,25 @@
             <p class="text-muted mt-3" style="font-size: 1.8rem;">ระบบกำลังอยู่ระหว่างการปรับปรุง หรือ พักเบรก<br>ขออภัยในความไม่สะดวกครับ/ค่ะ</p>
         </div>
 
+        <!-- 🆕 STEP 5b: ป้ายประกาศเรียกคิว (โผล่ชั่วคราวเมื่อมีการเรียกคิวมาที่จอนี้) -->
+        <div id="screen-queue-call-announce" class="overlay-screen d-none" style="z-index: 3500; background: rgba(13,71,161,0.97);">
+            <i class="bi bi-megaphone-fill text-warning mb-4" style="font-size: 6rem;"></i>
+            <h1 class="fw-bold text-white mb-2" style="font-size: 2.2rem;">เชิญคิวหมายเลข</h1>
+            <div id="calledTicketNumber" class="fw-bold text-warning" style="font-size: 6rem; letter-spacing: 4px;">-</div>
+        </div>
+
         <button class="btn btn-light btn-back d-none" id="btn-back-home" onclick="resetToHome()">
             <i class="bi bi-arrow-left-circle me-2"></i>เลือกประเภทใหม่
         </button>
 
+        <!-- 🆕 STEP 5b: หน้าจอล็อกรอเรียกคิว (ค่าเริ่มต้นตอน Tablet ว่าง แทนที่หน้าเลือกประเภทเดิม) -->
+        <div id="screen-queue-locked" class="w-100 d-flex flex-column align-items-center justify-content-center">
+            <i class="bi bi-hourglass-split text-secondary mb-4" style="font-size: 4rem; opacity: 0.5;"></i>
+            <div class="home-title" style="color: #90a4ae;">กรุณารอเรียกคิว</div>
+        </div>
+
         <!-- Home Screen -->
-        <div id="screen-home" class="w-100 d-flex flex-column align-items-center">
+        <div id="screen-home" class="w-100 d-flex flex-column align-items-center d-none">
             <div class="home-title">กรุณาเลือกประเภทผู้รับบริการ</div>
             
             <button class="btn-type btn-internal" onclick="handleSelect('internal')">
@@ -258,18 +271,58 @@
         const queueApp = firebase.initializeApp(queueFirebaseConfig, "queueApp");
         const queueDb = queueApp.database();
 
-        // เขียนค่าทดสอบเล็กๆ เพื่อพิสูจน์ว่าเชื่อมต่อโปรเจกต์คิวสำเร็จ
-        // (ไม่กระทบระบบเดิมเลย เป็นแค่ node ทดสอบแยกต่างหาก ลบทิ้งได้ทุกเมื่อ)
-        queueDb.ref('_connectionTest/' + tabletId).set({
-            connectedAt: firebase.database.ServerValue.TIMESTAMP,
-            note: 'Tablet_QueueTest.html เชื่อมต่อโปรเจกต์คิวสำเร็จ'
-        }).then(() => {
-            console.log('[Queue System] เชื่อมต่อ Firebase โปรเจกต์คิวสำเร็จ');
-        }).catch((err) => {
-            console.error('[Queue System] เชื่อมต่อ Firebase โปรเจกต์คิวไม่สำเร็จ:', err);
+        // ============================================================
+        // 🆕 STEP 5b: ระบบล็อก/ปลดล็อกหน้าจอตามการเรียกคิว
+        // ============================================================
+        let queueUnlocked = false;       // true = เพิ่งถูกเรียกคิว อนุญาตให้กดเลือกประเภทได้
+        let lastAnnouncedTicket = null;  // กันไม่ให้ประกาศคิวเดิมซ้ำ
+
+        // แปลงเลขคิว เช่น "A001" ให้อ่านออกเสียงชัดเจนขึ้น เช่น "เอ ศูนย์ศูนย์หนึ่ง"
+        function spellOutTicket(ticketNo) {
+            const categoryMap = { A: 'เอ', B: 'บี' };
+            const digitMap = { '0': 'ศูนย์', '1': 'หนึ่ง', '2': 'สอง', '3': 'สาม', '4': 'สี่', '5': 'ห้า', '6': 'หก', '7': 'เจ็ด', '8': 'แปด', '9': 'เก้า' };
+            const letter = ticketNo.charAt(0);
+            const digits = ticketNo.slice(1).split('').map(d => digitMap[d] || d).join(' ');
+            return (categoryMap[letter] || letter) + ' ' + digits;
+        }
+
+        // โชว์ป้ายประกาศ + พูดเสียงเรียกคิว แล้วปลดล็อกให้กดใช้งานได้หลังจากนั้น
+        function announceQueueCall(ticketNo) {
+            document.getElementById('calledTicketNumber').textContent = ticketNo;
+            const overlay = document.getElementById('screen-queue-call-announce');
+            overlay.classList.remove('d-none');
+            overlay.classList.add('d-flex');
+
+            try {
+                window.speechSynthesis.cancel(); // กันเสียงซ้อนจากคิวก่อนหน้า
+                const utterance = new SpeechSynthesisUtterance('เชิญคิวหมายเลข ' + spellOutTicket(ticketNo));
+                utterance.lang = 'th-TH';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
+            }
+
+            setTimeout(function () {
+                overlay.classList.add('d-none');
+                overlay.classList.remove('d-flex');
+                queueUnlocked = true;
+                if (currentStatus === 'idle') {
+                    showScreen('screen-home');
+                }
+            }, 5000);
+        }
+
+        // ฟังว่ามีการเรียกคิวมาที่จอนี้หรือยัง (เจ้าหน้าที่จะเป็นคนเขียนค่านี้ในขั้นถัดไป)
+        queueDb.ref('currentServing/' + tabletId).on('value', function (snapshot) {
+            const ticketNo = snapshot.val();
+            if (!ticketNo) return;
+            if (ticketNo === lastAnnouncedTicket) return; // กันประกาศซ้ำเลขเดิม
+            lastAnnouncedTicket = ticketNo;
+            announceQueueCall(ticketNo);
         });
         // ============================================================
-        // 🆕 จบส่วน STEP 5a
+        // 🆕 จบส่วน STEP 5b
         // ============================================================
 
         let currentStatus = ''; 
@@ -363,12 +416,12 @@
         }
 
         function showScreen(id) {
-            ['screen-home', 'screen-numpad', 'screen-loading', 'screen-active', 'screen-success'].forEach(s => {
+            ['screen-queue-locked', 'screen-home', 'screen-numpad', 'screen-loading', 'screen-active', 'screen-success'].forEach(s => {
                 document.getElementById(s).classList.toggle('d-none', s !== id);
             });
             const showBackButton = (id === 'screen-numpad' || id === 'screen-active');
             document.getElementById('btn-back-home').classList.toggle('d-none', !showBackButton);
-            const steps = { 'screen-home': 1, 'screen-numpad': 2, 'screen-loading': 2, 'screen-active': 3, 'screen-success': 3 };
+            const steps = { 'screen-queue-locked': 1, 'screen-home': 1, 'screen-numpad': 2, 'screen-loading': 2, 'screen-active': 3, 'screen-success': 3 };
             updateStepper(steps[id] || 1);
             
             resetActivityTimer(); // เริ่มจับเวลาทุกครั้งที่เปลี่ยนหน้า
@@ -442,19 +495,20 @@
 
         function resetToHome() {
             currentStatus = 'idle';
+            queueUnlocked = false; // 🆕 ล็อกจอกลับไปรอเรียกคิวใหม่ทุกครั้งที่จบงานหรือหมดเวลา
             sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null, cart: [], userInfo: null });
             
             const iframe = document.getElementById('eval-iframe');
             if (iframe) iframe.parentNode.removeChild(iframe);
             document.getElementById('eval-modal').classList.add('d-none');
             
-            showScreen('screen-home');
+            showScreen('screen-queue-locked');
         }
 
         // --- Firebase Listener ---
         sessionRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            if (!data) { showScreen('screen-home'); return; }
+            if (!data) { showScreen(queueUnlocked ? 'screen-home' : 'screen-queue-locked'); return; }
 
             const newStatus = data.status || 'idle';
             sapBuffer = (data.sapInput !== undefined && data.sapInput !== null) ? String(data.sapInput) : '';
@@ -475,7 +529,7 @@
                     showScreen('screen-numpad');
                     updateSAPDisplay(sapBuffer);
                 } else {
-                    showScreen('screen-home');
+                    showScreen(queueUnlocked ? 'screen-home' : 'screen-queue-locked');
                     sapBuffer = ''; updateSAPDisplay('');
                 }
                 return;
