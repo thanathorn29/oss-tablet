@@ -289,16 +289,22 @@
         // โชว์ป้ายประกาศ + พูดเสียงเรียกคิว แล้วปลดล็อกให้กดใช้งานได้หลังจากนั้น
         function announceQueueCall(ticketNo) {
     try {
-        window.speechSynthesis.cancel(); // ยกเลิกเสียงที่ค้างอยู่ก่อนหน้า
+        if (!('speechSynthesis' in window)) {
+            console.error('[Queue System] เบราว์เซอร์ไม่รองรับ Speech Synthesis');
+            return;
+        }
+
+        // ยกเลิกคิวเสียงที่ค้างอยู่ก่อนหน้า
+        window.speechSynthesis.cancel();
 
         const text = 'เชิญคิวหมายเลข ' + spellOutTicket(ticketNo);
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'th-TH';
         utterance.rate = 0.9;
 
-        // ค้นหาเสียงภาษาไทยในเบราว์เซอร์ (เช่น Google ภาษาไทย ใน Chrome)
+        // ดึงรายการเสียงในเครื่อง/เบราว์เซอร์
         const voices = window.speechSynthesis.getVoices();
-        const thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang.startsWith('th'));
+        const thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang.includes('th'));
 
         if (thaiVoice) {
             utterance.voice = thaiVoice;
@@ -308,6 +314,13 @@
     } catch (e) {
         console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
     }
+}
+
+// โหลดรายการเสียงเตรียมไว้ทันทีที่เปิดหน้าเว็บ
+if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = function() {
+        window.speechSynthesis.getVoices();
+    };
 }
 
 // โหลดรายชื่อเสียงล่วงหน้าทันทีเมื่อเบราว์เซอร์พร้อม (ป้องกันปัญหา Chrome โหลดเสียงไม่ทันตอนเปิดหน้าเว็บ)
