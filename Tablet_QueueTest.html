@@ -314,7 +314,7 @@
         }
 
         // ฟังว่ามีการเรียกคิวมาที่จอนี้หรือยัง (เจ้าหน้าที่จะเป็นคนเขียนค่านี้ในขั้นถัดไป)
-        queueDb.ref('queue/currentServing/' + tabletId).on('value', function (snapshot) {
+        queueDb.ref('_connectionTest/queue/currentServing/' + tabletId).on('value', function (snapshot) {
             const ticketNo = snapshot.val();
             if (!ticketNo) return;
             if (ticketNo === lastAnnouncedTicket) return; // กันประกาศซ้ำเลขเดิม
