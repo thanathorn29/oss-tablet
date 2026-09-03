@@ -288,29 +288,34 @@
 
         // โชว์ป้ายประกาศ + พูดเสียงเรียกคิว แล้วปลดล็อกให้กดใช้งานได้หลังจากนั้น
         function announceQueueCall(ticketNo) {
-            document.getElementById('calledTicketNumber').textContent = ticketNo;
-            const overlay = document.getElementById('screen-queue-call-announce');
-            overlay.classList.remove('d-none');
-            overlay.classList.add('d-flex');
+    try {
+        window.speechSynthesis.cancel(); // ยกเลิกเสียงที่ค้างอยู่ก่อนหน้า
 
-            try {
-    const text = 'เชิญคิวหมายเลข ' + spellOutTicket(ticketNo);
-    const ttsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&q=' + encodeURIComponent(text) + '&tl=th&client=tw-ob';
-    const queueAudio = new Audio(ttsUrl);
-    queueAudio.play();
-} catch (e) {
-    console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
+        const text = 'เชิญคิวหมายเลข ' + spellOutTicket(ticketNo);
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'th-TH';
+        utterance.rate = 0.9;
+
+        // ค้นหาเสียงภาษาไทยในเบราว์เซอร์ (เช่น Google ภาษาไทย ใน Chrome)
+        const voices = window.speechSynthesis.getVoices();
+        const thaiVoice = voices.find(v => v.lang === 'th-TH' || v.lang.startsWith('th'));
+
+        if (thaiVoice) {
+            utterance.voice = thaiVoice;
+        }
+
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
+    }
 }
 
-            setTimeout(function () {
-                overlay.classList.add('d-none');
-                overlay.classList.remove('d-flex');
-                queueUnlocked = true;
-                if (currentStatus === 'idle') {
-                    showScreen('screen-home');
-                }
-            }, 5000);
-        }
+// โหลดรายชื่อเสียงล่วงหน้าทันทีเมื่อเบราว์เซอร์พร้อม (ป้องกันปัญหา Chrome โหลดเสียงไม่ทันตอนเปิดหน้าเว็บ)
+if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = function() {
+        window.speechSynthesis.getVoices();
+    };
+}
 
         // ฟังว่ามีการเรียกคิวมาที่จอนี้หรือยัง (เจ้าหน้าที่จะเป็นคนเขียนค่านี้ในขั้นถัดไป)
         queueDb.ref('_connectionTest/queue/currentServing/' + tabletId).on('value', function (snapshot) {
