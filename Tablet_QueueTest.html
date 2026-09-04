@@ -623,7 +623,13 @@
             currentStatus = 'idle';
             queueUnlocked = false; // 🆕 ล็อกจอกลับไปรอเรียกคิวใหม่ทุกครั้งที่จบงานหรือหมดเวลา
             sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null, cart: [], userInfo: null });
-            
+
+            // 🆕 เคลียร์ค่าคิวที่เพิ่งประกาศไปแล้วออกจากระบบคิว กันค่าค้างรอประกาศซ้ำตอนรีเฟรชหน้าใหม่
+            lastAnnouncedTicket = null;
+            queueDb.ref('queue/currentServing/' + tabletId).set(null).catch(function (err) {
+                console.error('[Queue System] เคลียร์ค่าคิวไม่สำเร็จ:', err);
+            });
+
             const iframe = document.getElementById('eval-iframe');
             if (iframe) iframe.parentNode.removeChild(iframe);
             document.getElementById('eval-modal').classList.add('d-none');
