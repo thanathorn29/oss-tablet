@@ -64,6 +64,14 @@
 
         /* Overlay Screens */
         .overlay-screen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.94); }
+        }
+        .queue-locked-icon {
+          animation: pulse-slow 2.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
@@ -109,9 +117,10 @@
 
         <!-- 🆕 STEP 5b: หน้าจอล็อกรอเรียกคิว (ค่าเริ่มต้นตอน Tablet ว่าง แทนที่หน้าเลือกประเภทเดิม) -->
         <div id="screen-queue-locked" class="w-100 d-flex flex-column align-items-center justify-content-center">
-            <i class="bi bi-hourglass-split text-secondary mb-4" style="font-size: 4rem; opacity: 0.5;"></i>
-            <div class="home-title" style="color: #90a4ae;">กรุณารอเรียกคิว</div>
-            <div id="audioUnlockHint" class="text-muted mt-3" style="font-size: 1.1rem;"><i class="bi bi-volume-up me-1"></i>แตะหน้าจอเพื่อเปิดใช้งานเสียง</div>
+            <i class="bi bi-megaphone-fill queue-locked-icon mb-4" style="font-size: 6rem; color: var(--brand-color);"></i>
+            <div class="fw-bold mb-2" style="font-size: 2.8rem; color: var(--brand-color); letter-spacing: 1px;">กรุณารอเรียกคิว</div>
+            <div class="text-muted" style="font-size: 1.3rem;">ระบบจะแจ้งเตือนเมื่อถึงลำดับของท่าน</div>
+            <div id="audioUnlockHint" class="text-muted mt-4" style="font-size: 1.05rem; opacity: 0.7;"><i class="bi bi-volume-up me-1"></i>แตะหน้าจอเพื่อเปิดใช้งานเสียง</div>
         </div>
 
         <!-- Home Screen -->
