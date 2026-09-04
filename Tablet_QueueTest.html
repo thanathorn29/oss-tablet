@@ -286,6 +286,49 @@
             return (categoryMap[letter] || letter) + ' ' + digits;
         }
 
+        // ============================================================
+        // 🆕 ระบบเล่นเสียงเรียกคิวจากไฟล์ mp3 ที่อัดไว้ล่วงหน้า
+        // (แทนที่ Text-to-Speech เดิม เพราะพึ่งเสียงพูดของเครื่องไม่ได้แน่นอน)
+        // ============================================================
+        const SOUND_BASE_URL = 'https://thanathorn29.github.io/oss-tablet/sound/';
+        const CATEGORY_SOUND_MAP = { A: 'cat_a.mp3', B: 'cat_b.mp3' };
+        const DIGIT_SOUND_MAP = {
+            '0': 'digit_0.mp3', '1': 'digit_1.mp3', '2': 'digit_2.mp3', '3': 'digit_3.mp3', '4': 'digit_4.mp3',
+            '5': 'digit_5.mp3', '6': 'digit_6.mp3', '7': 'digit_7.mp3', '8': 'digit_8.mp3', '9': 'digit_9.mp3'
+        };
+
+        // แปลงเลขคิว เช่น "A007" ให้เป็นรายชื่อไฟล์เสียงที่ต้องเล่นเรียงกัน
+        function buildTicketAudioSequence(ticketNo) {
+            const letter = ticketNo.charAt(0);
+            const digits = ticketNo.slice(1).split('');
+            const files = [SOUND_BASE_URL + 'call_prefix.mp3'];
+            if (CATEGORY_SOUND_MAP[letter]) files.push(SOUND_BASE_URL + CATEGORY_SOUND_MAP[letter]);
+            digits.forEach(function (d) {
+                if (DIGIT_SOUND_MAP[d]) files.push(SOUND_BASE_URL + DIGIT_SOUND_MAP[d]);
+            });
+            return files;
+        }
+
+        // เล่นไฟล์เสียงทีละไฟล์ตามลำดับ (รอไฟล์ก่อนหน้าจบก่อนค่อยเล่นไฟล์ถัดไป)
+        function playSoundSequence(urls) {
+            return new Promise(function (resolve) {
+                let index = 0;
+                const audio = new Audio();
+                function playNext() {
+                    if (index >= urls.length) { resolve(); return; }
+                    audio.src = urls[index];
+                    index++;
+                    audio.play().catch(function (err) {
+                        console.error('[Queue System] เล่นไฟล์เสียงไม่สำเร็จ:', err);
+                        playNext(); // ข้ามไฟล์ที่มีปัญหา ไปเล่นไฟล์ถัดไปต่อ
+                    });
+                }
+                audio.addEventListener('ended', playNext);
+                playNext();
+            });
+        }
+        // ============================================================
+
         // เสียง "ติ๊ง" สำรอง สร้างขึ้นเองด้วยโค้ด ไม่ต้องพึ่งไฟล์เสียงหรือเสียงพูดของเครื่อง
         // ทำงานได้แน่นอนทุกเครื่อง แม้เครื่องนั้นจะไม่มีเสียงพูดภาษาไทยติดตั้งอยู่ก็ตาม
         function playChimeSound() {
@@ -310,33 +353,27 @@
             }
         }
 
-        // โชว์ป้ายประกาศ + พูดเสียงเรียกคิว แล้วปลดล็อกให้กดใช้งานได้หลังจากนั้น
+        // โชว์ป้ายประกาศ + เล่นเสียงเรียกคิวจากไฟล์จริง แล้วปลดล็อกให้กดใช้งานได้หลังเสียงจบ
         function announceQueueCall(ticketNo) {
             document.getElementById('calledTicketNumber').textContent = ticketNo;
             const overlay = document.getElementById('screen-queue-call-announce');
             overlay.classList.remove('d-none');
             overlay.classList.add('d-flex');
 
-            playChimeSound(); // 🆕 เสียง beep สำรอง ทำงานได้แน่นอนทุกเครื่อง
+            playChimeSound(); // เสียงติ๊งเรียกความสนใจก่อน
 
-            try {
-                window.speechSynthesis.cancel(); // กันเสียงซ้อนจากคิวก่อนหน้า
-                const utterance = new SpeechSynthesisUtterance('เชิญคิวหมายเลข ' + spellOutTicket(ticketNo));
-                utterance.lang = 'th-TH';
-                utterance.rate = 0.9;
-                window.speechSynthesis.speak(utterance);
-            } catch (e) {
-                console.error('[Queue System] พูดเสียงเรียกคิวไม่สำเร็จ:', e);
-            }
-
-            setTimeout(function () {
-                overlay.classList.add('d-none');
-                overlay.classList.remove('d-flex');
-                queueUnlocked = true;
-                if (currentStatus === 'idle') {
-                    showScreen('screen-home');
-                }
-            }, 5000);
+            const audioFiles = buildTicketAudioSequence(ticketNo);
+            playSoundSequence(audioFiles).finally(function () {
+                // รอเสียงเล่นจบจริงก่อน แล้วเว้นอีกนิดให้อ่านตัวเลขบนจอทัน ค่อยปลดล็อก
+                setTimeout(function () {
+                    overlay.classList.add('d-none');
+                    overlay.classList.remove('d-flex');
+                    queueUnlocked = true;
+                    if (currentStatus === 'idle') {
+                        showScreen('screen-home');
+                    }
+                }, 1500);
+            });
         }
 
         // ฟังว่ามีการเรียกคิวมาที่จอนี้หรือยัง (เจ้าหน้าที่จะเป็นคนเขียนค่านี้ในขั้นถัดไป)
