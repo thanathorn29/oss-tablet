@@ -311,20 +311,28 @@
         }
 
         // เล่นไฟล์เสียงทีละไฟล์ตามลำดับ (รอไฟล์ก่อนหน้าจบก่อนค่อยเล่นไฟล์ถัดไป)
+        // ใช้ sharedVoiceAudio ตัวเดียวกับที่ปลดล็อกไว้ตอนแตะจอครั้งแรก เพื่อให้เล่นได้แน่นอนบนมือถือ
         function playSoundSequence(urls) {
             return new Promise(function (resolve) {
                 let index = 0;
-                const audio = new Audio();
+                function onEnded() { playNext(); }
+                sharedVoiceAudio.removeEventListener('ended', onEnded); // กัน listener ค้างจากรอบก่อน
+                sharedVoiceAudio.addEventListener('ended', onEnded);
+
                 function playNext() {
-                    if (index >= urls.length) { resolve(); return; }
-                    audio.src = urls[index];
+                    if (index >= urls.length) {
+                        sharedVoiceAudio.removeEventListener('ended', onEnded);
+                        resolve();
+                        return;
+                    }
+                    sharedVoiceAudio.src = urls[index];
+                    sharedVoiceAudio.volume = 1;
                     index++;
-                    audio.play().catch(function (err) {
+                    sharedVoiceAudio.play().catch(function (err) {
                         console.error('[Queue System] เล่นไฟล์เสียงไม่สำเร็จ:', err);
                         playNext(); // ข้ามไฟล์ที่มีปัญหา ไปเล่นไฟล์ถัดไปต่อ
                     });
                 }
-                audio.addEventListener('ended', playNext);
                 playNext();
             });
         }
@@ -334,9 +342,11 @@
         // 🆕 ระบบปลดล็อกการเล่นเสียงสำหรับมือถือ/แท็บเล็ต
         // เบราว์เซอร์บนมือถือจะบล็อกเสียงที่เล่นเองโดยไม่มีการแตะจอมาก่อน
         // ต้องปลดล็อกด้วยการแตะจอครั้งแรกก่อน ถึงจะเล่นเสียงเรียกคิวได้ในครั้งถัดๆ ไป
+        // ใช้ audio element ตัวเดียวกันซ้ำตลอด (ไม่สร้างใหม่ทุกครั้ง) เพื่อให้สถานะปลดล็อกติดกับ element นี้แน่นอน
         // ============================================================
         let sharedAudioCtx = null;
         let audioPlaybackUnlocked = false;
+        const sharedVoiceAudio = new Audio(); // ตัวเดียวใช้เล่นทั้งตอนปลดล็อกและตอนประกาศคิวจริง
 
         function getSharedAudioCtx() {
             if (!sharedAudioCtx) {
@@ -356,16 +366,21 @@
             }
 
             try {
-                const primerAudio = new Audio(SOUND_BASE_URL + 'call_prefix.mp3');
-                primerAudio.volume = 0; // เล่นเงียบๆ แค่เพื่อขอสิทธิ์เล่นเสียงจากเบราว์เซอร์
-                primerAudio.play().then(function () {
-                    primerAudio.pause();
-                    audioPlaybackUnlocked = true;
-                    const hint = document.getElementById('audioUnlockHint');
-                    if (hint) hint.classList.add('d-none');
-                }).catch(function (err) {
-                    console.error('[Queue System] ปลดล็อกเสียงไม่สำเร็จ:', err);
-                });
+                sharedVoiceAudio.src = SOUND_BASE_URL + 'call_prefix.mp3';
+                sharedVoiceAudio.volume = 0; // เล่นเงียบๆ แค่เพื่อขอสิทธิ์เล่นเสียงจากเบราว์เซอร์
+                const playPromise = sharedVoiceAudio.play();
+                if (playPromise && playPromise.then) {
+                    playPromise.then(function () {
+                        sharedVoiceAudio.pause();
+                        sharedVoiceAudio.currentTime = 0;
+                        sharedVoiceAudio.volume = 1; // คืนค่าระดับเสียงปกติ ไว้ใช้เล่นจริงครั้งถัดไป
+                        audioPlaybackUnlocked = true;
+                        const hint = document.getElementById('audioUnlockHint');
+                        if (hint) hint.classList.add('d-none');
+                    }).catch(function (err) {
+                        console.error('[Queue System] ปลดล็อกเสียงไม่สำเร็จ:', err);
+                    });
+                }
             } catch (e) {
                 console.error('[Queue System] ปลดล็อกเสียงไม่สำเร็จ:', e);
             }
