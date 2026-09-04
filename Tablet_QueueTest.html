@@ -111,6 +111,7 @@
         <div id="screen-queue-locked" class="w-100 d-flex flex-column align-items-center justify-content-center">
             <i class="bi bi-hourglass-split text-secondary mb-4" style="font-size: 4rem; opacity: 0.5;"></i>
             <div class="home-title" style="color: #90a4ae;">กรุณารอเรียกคิว</div>
+            <div id="audioUnlockHint" class="text-muted mt-3" style="font-size: 1.1rem;"><i class="bi bi-volume-up me-1"></i>แตะหน้าจอเพื่อเปิดใช้งานเสียง</div>
         </div>
 
         <!-- Home Screen -->
@@ -329,11 +330,58 @@
         }
         // ============================================================
 
+        // ============================================================
+        // 🆕 ระบบปลดล็อกการเล่นเสียงสำหรับมือถือ/แท็บเล็ต
+        // เบราว์เซอร์บนมือถือจะบล็อกเสียงที่เล่นเองโดยไม่มีการแตะจอมาก่อน
+        // ต้องปลดล็อกด้วยการแตะจอครั้งแรกก่อน ถึงจะเล่นเสียงเรียกคิวได้ในครั้งถัดๆ ไป
+        // ============================================================
+        let sharedAudioCtx = null;
+        let audioPlaybackUnlocked = false;
+
+        function getSharedAudioCtx() {
+            if (!sharedAudioCtx) {
+                sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return sharedAudioCtx;
+        }
+
+        function unlockAudioPlayback() {
+            if (audioPlaybackUnlocked) return;
+
+            try {
+                const ctx = getSharedAudioCtx();
+                if (ctx.state === 'suspended') { ctx.resume(); }
+            } catch (e) {
+                console.error('[Queue System] ปลดล็อก AudioContext ไม่สำเร็จ:', e);
+            }
+
+            try {
+                const primerAudio = new Audio(SOUND_BASE_URL + 'call_prefix.mp3');
+                primerAudio.volume = 0; // เล่นเงียบๆ แค่เพื่อขอสิทธิ์เล่นเสียงจากเบราว์เซอร์
+                primerAudio.play().then(function () {
+                    primerAudio.pause();
+                    audioPlaybackUnlocked = true;
+                    const hint = document.getElementById('audioUnlockHint');
+                    if (hint) hint.classList.add('d-none');
+                }).catch(function (err) {
+                    console.error('[Queue System] ปลดล็อกเสียงไม่สำเร็จ:', err);
+                });
+            } catch (e) {
+                console.error('[Queue System] ปลดล็อกเสียงไม่สำเร็จ:', e);
+            }
+        }
+
+        // ดักจับการแตะ/คลิกที่ไหนก็ได้บนหน้าจอ เพื่อปลดล็อกเสียงไว้ล่วงหน้า (ทำครั้งเดียวพอ)
+        document.addEventListener('touchstart', unlockAudioPlayback, { capture: true });
+        document.addEventListener('mousedown', unlockAudioPlayback, { capture: true });
+        // ============================================================
+
         // เสียง "ติ๊ง" สำรอง สร้างขึ้นเองด้วยโค้ด ไม่ต้องพึ่งไฟล์เสียงหรือเสียงพูดของเครื่อง
         // ทำงานได้แน่นอนทุกเครื่อง แม้เครื่องนั้นจะไม่มีเสียงพูดภาษาไทยติดตั้งอยู่ก็ตาม
         function playChimeSound() {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const audioCtx = getSharedAudioCtx();
+                if (audioCtx.state === 'suspended') { audioCtx.resume(); }
                 const now = audioCtx.currentTime;
                 [880, 1320].forEach(function (freq, i) {
                     const osc = audioCtx.createOscillator();
