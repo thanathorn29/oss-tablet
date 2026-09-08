@@ -287,6 +287,32 @@
         let queueUnlocked = false;       // true = เพิ่งถูกเรียกคิว อนุญาตให้กดเลือกประเภทได้
         let lastAnnouncedTicket = null;  // กันไม่ให้ประกาศคิวเดิมซ้ำ
 
+        // ============================================================
+        // 🆕 ระบบ "เวลาผ่อนผัน" หลังปลดล็อก
+        // ถ้าปลดล็อกแล้วแต่ไม่มีใครกดเลือกประเภทภายในเวลาที่กำหนด (ลูกค้าอาจไม่มา/เจ้าหน้าที่ไม่ว่าง)
+        // ให้ล็อกจอกลับอัตโนมัติ เพื่อคืนสถานะ "ว่าง" ให้ระบบคิว ไม่ให้จอนี้ค้างไม่ว่างตลอดไป
+        // ============================================================
+        let unlockedGraceTimer = null;
+        const UNLOCKED_GRACE_MS = 90000; // 90 วินาที ให้เวลาลูกค้าเดินมากดเลือกประเภท
+
+        function startUnlockedGraceTimer() {
+            clearUnlockedGraceTimer();
+            unlockedGraceTimer = setTimeout(function () {
+                // เช็คซ้ำอีกทีตอนเวลาหมด ว่ายังไม่มีใครกดเลือกประเภทจริงๆ
+                if (queueUnlocked && currentStatus === 'idle') {
+                    resetToHome();
+                }
+            }, UNLOCKED_GRACE_MS);
+        }
+
+        function clearUnlockedGraceTimer() {
+            if (unlockedGraceTimer) {
+                clearTimeout(unlockedGraceTimer);
+                unlockedGraceTimer = null;
+            }
+        }
+        // ============================================================
+
         // แปลงเลขคิว เช่น "A001" ให้อ่านออกเสียงชัดเจนขึ้น เช่น "เอ ศูนย์ศูนย์หนึ่ง"
         function spellOutTicket(ticketNo) {
             const categoryMap = { A: 'เอ', B: 'บี' };
@@ -444,6 +470,7 @@
                     if (currentStatus === 'idle') {
                         showScreen('screen-home');
                     }
+                    startUnlockedGraceTimer(); // 🆕 เริ่มจับเวลาผ่อนผัน ถ้าไม่มีใครกดเลือกประเภทจะล็อกจอกลับเอง
                 }, 1500);
             });
         }
@@ -571,6 +598,7 @@
 
         // --- Actions ---
         function handleSelect(type) {
+            clearUnlockedGraceTimer(); // 🆕 มีการกดเลือกประเภทแล้ว ไม่ต้องกลัวหมดเวลาผ่อนผันอีกต่อไป
             const arrivedAt = Date.now(); 
             if (type === 'internal') {
                 sapBuffer = '';
@@ -631,6 +659,7 @@
         function resetToHome() {
             currentStatus = 'idle';
             queueUnlocked = false; // 🆕 ล็อกจอกลับไปรอเรียกคิวใหม่ทุกครั้งที่จบงานหรือหมดเวลา
+            clearUnlockedGraceTimer(); // 🆕 เคลียร์ตัวจับเวลาผ่อนผัน กันซ้อนกันเรียกซ้ำ
             sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null, cart: [], userInfo: null });
 
             // 🆕 เคลียร์ค่าคิวที่เพิ่งประกาศไปแล้วออกจากระบบคิว กันค่าค้างรอประกาศซ้ำตอนรีเฟรชหน้าใหม่
