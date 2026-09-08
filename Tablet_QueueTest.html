@@ -461,18 +461,26 @@
             playChimeSound(); // เสียงติ๊งเรียกความสนใจก่อน
 
             const audioFiles = buildTicketAudioSequence(ticketNo);
-            playSoundSequence(audioFiles).finally(function () {
-                // รอเสียงเล่นจบจริงก่อน แล้วเว้นอีกนิดให้อ่านตัวเลขบนจอทัน ค่อยปลดล็อก
-                setTimeout(function () {
-                    overlay.classList.add('d-none');
-                    overlay.classList.remove('d-flex');
-                    queueUnlocked = true;
-                    if (currentStatus === 'idle') {
-                        showScreen('screen-home');
-                    }
-                    startUnlockedGraceTimer(); // 🆕 เริ่มจับเวลาผ่อนผัน ถ้าไม่มีใครกดเลือกประเภทจะล็อกจอกลับเอง
-                }, 1500);
-            });
+            playSoundSequence(audioFiles)
+                .then(function () {
+                    // เว้น 3 วินาที แล้วเล่นซ้ำอีกรอบ กันพลาดฟังตอนรอบแรก
+                    return new Promise(function (resolve) { setTimeout(resolve, 3000); });
+                })
+                .then(function () {
+                    return playSoundSequence(audioFiles);
+                })
+                .finally(function () {
+                    // รอเสียงเล่นจบจริงก่อน แล้วเว้นอีกนิดให้อ่านตัวเลขบนจอทัน ค่อยปลดล็อก
+                    setTimeout(function () {
+                        overlay.classList.add('d-none');
+                        overlay.classList.remove('d-flex');
+                        queueUnlocked = true;
+                        if (currentStatus === 'idle') {
+                            showScreen('screen-home');
+                        }
+                        startUnlockedGraceTimer(); // 🆕 เริ่มจับเวลาผ่อนผัน ถ้าไม่มีใครกดเลือกประเภทจะล็อกจอกลับเอง
+                    }, 1500);
+                });
         }
 
         // ฟังว่ามีการเรียกคิวมาที่จอนี้หรือยัง (เจ้าหน้าที่จะเป็นคนเขียนค่านี้ในขั้นถัดไป)
