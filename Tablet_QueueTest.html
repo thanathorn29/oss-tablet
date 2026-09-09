@@ -670,9 +670,20 @@
             clearUnlockedGraceTimer(); // 🆕 เคลียร์ตัวจับเวลาผ่อนผัน กันซ้อนกันเรียกซ้ำ
             sessionRef.set({ status: 'idle', sapInput: '', isTabletTyping: false, userType: '', subType: '', arrivedAt: null, cart: [], userInfo: null });
 
-            // 🆕 เคลียร์ค่าคิวที่เพิ่งประกาศไปแล้วออกจากระบบคิว กันค่าค้างรอประกาศซ้ำตอนรีเฟรชหน้าใหม่
+            // 🆕 ปิดงานคิวที่เพิ่งให้บริการเสร็จ: อ่านว่าตอนนี้จอนี้กำลังให้บริการคิวไหนอยู่ก่อน
+            // แล้วเปลี่ยนสถานะคิวนั้นเป็น "done" (ไม่ใช่แค่เคลียร์ currentServing เฉยๆ)
+            // กันไม่ให้คิวที่เสร็จไปแล้วค้างอยู่ในลิสต์ "รอเรียก" ของฝั่งเจ้าหน้าที่ตลอดไป
             lastAnnouncedTicket = null;
-            queueDb.ref('queue/currentServing/' + tabletId).set(null).catch(function (err) {
+            const currentServingRef = queueDb.ref('queue/currentServing/' + tabletId);
+            currentServingRef.once('value').then(function (snap) {
+                const servedTicketNo = snap.val();
+                if (servedTicketNo) {
+                    queueDb.ref('queue/tickets/' + servedTicketNo + '/status').set('done').catch(function (err) {
+                        console.error('[Queue System] ปิดสถานะคิวไม่สำเร็จ:', err);
+                    });
+                }
+                return currentServingRef.set(null);
+            }).catch(function (err) {
                 console.error('[Queue System] เคลียร์ค่าคิวไม่สำเร็จ:', err);
             });
 
